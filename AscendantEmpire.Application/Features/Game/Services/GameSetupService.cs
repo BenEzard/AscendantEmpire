@@ -110,6 +110,9 @@ internal class GameSetupService(
         "RawMaterials.RawMaterials.Tallow",
 
         "Foodstuffs.PlantFoods.Berries",
+        "Foodstuffs.Meat.Hunt",
+        "Foodstuffs.Meat.Fish",
+        "Foodstuffs.PlantFoods.Forage",
 
         // Population stats; excluding Airforce and Navy which need to be unlocked.
         // The foreign Assets are unlocked from the first Round even though nobody has met anybody yet.

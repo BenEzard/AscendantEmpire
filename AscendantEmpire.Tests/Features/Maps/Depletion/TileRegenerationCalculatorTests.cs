@@ -148,4 +148,26 @@ internal class TileRegenerationCalculatorTests
             Assert.That(() => TileRegenerationCalculator.Regenerate(ScaledAmount.Zero, _BASE, 1.001m, fedOn: true), Throws.TypeOf<ArgumentOutOfRangeException>());
         }
     }
+
+    #region Regrowth
+
+    [Test, Description("Pins the regrowth amount on its own, since a Settlement's harvest caps itself with the same method the Round regrows by.")]
+    public void ShouldFloorTheRegrowthToAThousandthWhenThePercentageDoesNotDivideEvenly()
+    {
+        // 25 at 15% is 3.75, which the floor keeps whole in thousandths rather than rounding up in the tile's favour.
+        ScaledAmount regrowth = TileRegenerationCalculator.CalculateRegrowth(ScaledAmount.FromWhole(25), 0.15m);
+
+        Assert.That(regrowth, Is.EqualTo(ScaledAmount.FromRaw(3_750)));
+    }
+
+    [Test, Description("Pins that the regrowth method and the end-of-Round regrowth agree, which is the whole reason the harvest reads this one.")]
+    public void ShouldMatchWhatRegenerateGivesBackWhenTheTileIsFedOn()
+    {
+        ScaledAmount regrowth = TileRegenerationCalculator.CalculateRegrowth(_BASE, _PERCENT);
+        ScaledAmount newTaken = TileRegenerationCalculator.Regenerate(ScaledAmount.FromWhole(30), _BASE, _PERCENT, fedOn: true);
+
+        Assert.That(ScaledAmount.FromWhole(30) - regrowth, Is.EqualTo(newTaken));
+    }
+
+    #endregion
 }

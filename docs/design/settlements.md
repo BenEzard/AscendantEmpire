@@ -242,6 +242,104 @@ settlement's own tile transfers its whole territory at once; razing it abandons 
 instead. The states, the transfer rules and the rebellion period are in
 [campaign-map/tile-ownership.md](campaign-map/tile-ownership.md).
 
+## Harvest
+
+> **Not built yet.** None of this section exists in code. The pieces it is built out of all do: `OwnedBySettlementId` carries the territory, `IPlayerSustenanceValueReader` and `IBiomeRegenerationValueReader` give the amounts, `CampaignMapDepletion` records what has been taken, and `IAssetBankCreditService` places stock in a bank.
+
+A settlement draws food and materials off the tiles of its own territory, and banks what it draws. This is the only thing that credits an asset bank from the land, and it is what a settlement lives on.
+
+### When it runs
+
+At the **start of every Campaign Round**, before any player's turn, as the first process of the start-of-round pipeline. The pipeline is game-scoped rather than player-scoped, so one pass harvests for every settlement in the game, each against its own owner's values.
+
+Gathering at the start of the round and eating at the end of it is the shape of a round: resources are gathered first, and units and populations are fed out of what was gathered. It also falls in with [replenishment](campaign-map/replenishment.md), which runs at the end of the round — the harvest collects the increase replenishment has just put back, and whatever a Force eats off a tile during the round comes out of the standing stock instead. A settlement therefore takes the growth and an army takes the capital.
+
+The population eats out of the bank at the **end** of the round, not off the tiles, which is what makes the harvest the thing a settlement lives on. Neither that meal nor the growth it is meant to fund is built — see "Not part of this model" below.
+
+### What is harvested
+
+Every tile carrying this settlement in `CampaignMap.OwnedBySettlementId` — its own tile and whatever of its radius it was able to take. Two consequences fall out of that without a rule of their own:
+
+- A **camp** has a territory radius of 0, so it harvests the single tile it stands on.
+- An **unfinished** settlement owns no tiles at all, because `BuildingStructure` does not write the territory until construction completes, so it harvests nothing.
+
+### Two kinds of yield
+
+A biome's values divide in two, and the harvest treats them differently because they already behave differently — see the Biome section of [campaign-map/tiles.md](campaign-map/tiles.md#biome).
+
+| | Sustenance — Forage, Hunt, Fish, Fodder | Material — Wood, Stone, Bone |
+| --- | --- | --- |
+| Player-specific | Yes, through `PlayerSustenanceModifier` | No, static for every player in every game |
+| Depletes | Yes, into `CampaignMapDepletion` | No, nothing is recorded |
+| Regrows | Yes, at the biome's Regeneration Percent | Nothing to regrow |
+| Rivers | Counted, per [campaign-map/food-yield.md](campaign-map/food-yield.md#rivers) | Not counted |
+| What the harvest takes | The tile's regrowth | The biome's base value |
+
+#### Sustenance: the tile's regrowth, and no more
+
+Per tile, per resource, the settlement takes `MIN(available to the owner, the tile's regrowth, the staffed share)`, and what it takes is added to that resource's `Taken` on the tile — the same shared, player-neutral amount a Force's meal adds to.
+
+**The cap is the regrowth** — `Regeneration Percent × Base`, read through the same `IBiomeRegenerationValueReader` and river bonus that the end-of-round replenishment gives back, so that the harvest and the regrowth are computed from one source and cannot drift apart. A settlement's territory is therefore in equilibrium by construction: `Taken` rises by the harvest at the start of the round and falls by the same amount at the end of it, and the land stays as full as it was.
+
+**Capping costs the settlement nothing.** A settlement allowed to take everything available would strip its territory in its first round and then receive exactly the regrowth every round after, because the regrowth is all that replenishment puts back — the same income, reached by way of one windfall round and a ring of bare ground. The bare ground is what makes the difference: it would starve the settlement's own Forces standing on their own territory, and show as a dead zone on the support indicator.
+
+**A harvest does not mark the tile as fed on.** `CampaignMapDepletion.FedOnRound` records that a *Force* was present, which is what the 10% floor of [replenishment](campaign-map/replenishment.md) turns on, and a harvest that takes only the regrowth leaves `Taken` at 0 regardless.
+
+#### Materials: the base value, every round
+
+Per tile, the settlement takes the biome's `BaseWoodValue`, `BaseStoneValue` and `BaseBoneValue`, in full, every round. Nothing is recorded against the tile, nothing regrows, and no player modifier or river bonus applies, because a material value is static and is not depleted.
+
+Each maps to the generic asset of its kind, the same three the game's starting stock is denominated in:
+
+| Biome value | Asset |
+| --- | --- |
+| Wood | `ConstructionMaterials.Wood.Logs.GenericLog` |
+| Stone | `ConstructionMaterials.Stone.RawRock.GenericRock` |
+| Bone | `RawMaterials.RawMaterials.Bone` |
+
+The base value is its own ceiling, so the staffed share below only ever binds on a very small settlement. A village banks its territory's whole material yield every round, indefinitely.
+
+### Who does the work
+
+**The whole population works every tile.** A settlement of 100 staffs each of its nine tiles with 100 civilians, and the staffed share of a tile is that number times a flat rate per civilian.
+
+> This is deliberately unrealistic, and is the first thing to refine. A population cannot work nine tiles at once, and the figure it produces is not the population's labour but a cap that almost never binds: on any decent terrain the regrowth is the smaller number, so the population barely affects what a settlement harvests. It becomes the real constraint once civilians are **allocated** to tiles — a count per settlement and tile, held in its own table rather than on the player-neutral `CampaignMap` row, with a tile's share of its regrowth proportional to how fully it is staffed. The allocation is the only part that changes: the harvest already asks one place how many civilians work a tile.
+
+### Details
+
+- **The rate per civilian is one unit** of a resource, per tile, per round. On any terrain worth settling the regrowth or the base value is the smaller number, so the rate is a ceiling that does not bind and is not a figure to balance the economy with. The allocation above is what will make it matter.
+- **The owner is the Structure's owner** — `StructureInstance.OwnedByPlayerId`, which is where a settlement's ownership lives and what a conquest moves. A captured settlement therefore harvests against its new owner's sustenance values from the round after it changes hands.
+- **Rounding goes against the settlement**, in thousandths, the same way the tile's own arithmetic rounds against the tile.
+- **Water in a territory harvests normally.** A tile is harvested for whatever its biome has a base value for, so an owned coastal tile gives its Fish and no rule is needed to tell land from water.
+- **A rerun harvests twice.** The turn pipeline is not transactional, so if a later start-of-round process fails and the round is started again, every settlement harvests a second time. `Gathering` carries the same risk and the same TODO; both wait on the pipeline's retry story being settled.
+
+### Where it lands
+
+Through `IAssetBankCreditService`, as a credit arriving at the settlement, which is the one path anything is credited by. So the stock spreads across the settlement's **network** rather than into its own bank alone, favouring the emptiest banks, and is bounded by each receiving settlement's own storage capacity. A camp's harvest can therefore come to rest in the village it is attached to.
+
+**What does not fit is wasted.** A credit meeting a full network reports the remainder as unplaced and writes nothing for it; the harvest logs that figure and lets the round continue, because a store overflowing is an ordinary consequence of a small settlement on rich ground rather than a reason to refuse a round.
+
+### A worked example
+
+A village of 100 on nine grassland tiles — Forage 40, Hunt 70, Regeneration Percent 25% — with one unit of any food feeding one individual for a turn:
+
+| | Per tile | Across nine tiles |
+| --- | --- | --- |
+| Forage harvested | 10 | 90 |
+| Hunt harvested | 17.5 | 157.5 |
+| Food the population needs | | 100 |
+| **Food banked** | | **147.5** |
+| Wood, Stone and Bone harvested | 40 each | 360 each |
+
+The same village on arid land — Forage 30, Hunt 30, Regeneration Percent 15% — harvests 9 food a tile, 81 in all, and cannot feed itself. Terrain decides where a settlement is viable, and a player can read the numbers off the tile toolbar before founding one.
+
+### Not part of this model
+
+- **MapResources on the territory are not harvested.** A patch of berries or timber standing on an owned tile is taken by a Force through `TakeResources` and by nothing else.
+- **A hostile Force does not deny the harvest**, though [depletion.md](campaign-map/depletion.md) says it should: a Force within a settlement's area is meant to gather the tile and leave the settlement nothing. Harvesting at the start of the round gives the settlement first claim instead.
+- **Nothing is reported to the player.** What a settlement gathered, and what was wasted, exist only in the log.
+- **Nothing consumes the harvest.** The population's food requirement above is what it will eat at the end of the round, out of the bank; `Settlement.Population` is still read by nothing, and the growth the surplus is meant to fund is not modelled.
+
 ## Asset banks
 
 > **Partly built.** `AssetBank` and `AssetBankBalance` are mapped, in the `assets` schema and keyed on

@@ -98,7 +98,8 @@ because its Berries is in the same food set. Although technically an Asset can b
 
 ## Depletion rules
 
-- Units and settlement populations are fed at the **end of their turn**.
+- Resources are **gathered at the start of the round**, and units and settlement populations are **fed at the end of the round**. A settlement harvests its territory into its bank and its population eats out of that bank — see "Harvest" in [../settlements.md](../settlements.md#harvest).
+- `Gathering` feeds a player's Forces at the **end of that player's turn**, off the tile each one stands on, by the calculation in this document. The harvest changes nothing about it: it takes only what a tile regrows, so a Force still finds the tile's standing stock where it left it. Feeding populations is the part that is not built.
 - A hostile unit within a settlement's controlled area **gathers the resources and the settlement
   gets nothing** — even if the unit only takes 5%, it blocks the settlement from collecting the
   rest.
@@ -378,10 +379,7 @@ The rules above that have no code yet, each carried as a TODO on the process tha
 - **Force gathering bonuses** reducing what a Force draws from a tile.
 - **Patch growth**: a MapResource eaten does not grow back, so a renewable patch is a stock that only
   ever falls. The support forecast counts it the same way.
-- **Settlements**: a hostile Force denying a Settlement its tile, settlement-zone tiles being found
-  for replenishment, owned tiles regrowing against the owner's values, and Settlement-scoped
-  modifiers. Who holds a tile, and what an occupier may take from it, is in
-  [tile-ownership.md](tile-ownership.md).
+- **Settlements**: a Settlement harvesting its territory, a hostile Force denying it a tile, settlement-zone tiles being found for replenishment, owned tiles regrowing against the owner's values, and Settlement-scoped modifiers. What a Settlement takes and what it does with it is designed in "Harvest" in [../settlements.md](../settlements.md#harvest). Who holds a tile, and what an occupier may take from it, is in [tile-ownership.md](tile-ownership.md).
 - **Hidden Forces**: a hidden Force feeding raises the shared `Taken`, which signals that it is
   there.
 - **Rerun safety**: the pipeline is not transactional, so ending a turn again after a later process

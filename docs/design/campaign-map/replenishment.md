@@ -27,7 +27,9 @@ A land tile's **rivers** are part of `Base`, on the same terms as anywhere else 
 
 A tile was **fed on** this round if any Force ended its turn on it, or passed through it (the 20% draw), **whether or not there was anything left to take**. It depends on presence, not on food extracted.
 
-> TODO: Whether a Settlement's population feeding on its own territory counts as feeding on the tile is deferred to the Settlement mechanics. A hostile Force **can** deny a Settlement the food it was drawing from a tile, which is what makes a ring of occupied tiles a siege — see [tile-ownership.md](tile-ownership.md#occupation).
+A Settlement harvesting its own territory does **not** mark a tile as fed on. `FedOnRound` records that a Force was present, and a harvest takes no more than the tile regrows, so `Taken` is back to 0 before Rule 2 could ever apply to it — see "Harvest" in [../settlements.md](../settlements.md#harvest).
+
+> TODO: A hostile Force **can** deny a Settlement the food it was drawing from a tile, which is what makes a ring of occupied tiles a siege — see [tile-ownership.md](tile-ownership.md#occupation).
 
 ## Calculation
 
@@ -207,8 +209,7 @@ get the same answer.
 - **Settlement-scoped regeneration modifiers.** `PlayerSustenanceModifier` has no `SettlementId`
   scope yet.
 - **Settlement-zone tiles** being found for replenishment at all.
-- **Whether a Settlement's population feeding on its own territory counts as feeding on the tile**,
-  which decides whether Rule 2 applies to it.
+- **A Settlement harvesting its territory** at all, which is what the regrowth of an owned tile is there to feed — see "Harvest" in [../settlements.md](../settlements.md#harvest).
 - **Scorched earth** setting `Taken`, which is undecided — see [depletion.md](depletion.md).
 - **Rerun safety.** The pipeline is not transactional, so ending the round again after a later
   process fails would regrow every tile a second time. A per-round regenerated stamp waits on the

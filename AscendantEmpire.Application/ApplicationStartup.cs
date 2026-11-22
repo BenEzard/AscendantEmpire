@@ -28,6 +28,7 @@ using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibl
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndRound;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
+using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.StartRound;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.StartTurn;
 using AscendantEmpire.Application.Features.Units.Services;
 
@@ -90,6 +91,7 @@ public static class ApplicationStartup
         services.AddScoped<ITileSupportEvaluator, TileSupportEvaluator>();
         services.AddScoped<IBiomeRegenerationValueReader, BiomeRegenerationValueReader>();
         services.AddScoped<ISustenanceAssetReader, SustenanceAssetReader>();
+        services.AddScoped<IMaterialAssetReader, MaterialAssetReader>();
         services.AddScoped<ISupplySetMembershipReader, SupplySetMembershipReader>();
         services.AddScoped<ITileFoodStockReader, TileFoodStockReader>();
         services.AddScoped<ITileFoodDisclosureReader, TileFoodDisclosureReader>();
@@ -174,6 +176,9 @@ public static class ApplicationStartup
         services.AddScoped<IEndCampaignRoundProcess, RegenerateMapResources>();
         services.AddScoped<IEndCampaignRoundProcess, ResolveTileTerritory>();
         services.AddScoped<IEndCampaignRoundProcess, EvaluateVictoryConditions>();
+
+        // Start of a Campaign Round — runs once, before the first Player's turn.
+        services.AddScoped<IStartCampaignRoundProcess, HarvestSettlementTerritory>();
 
         // Start of a Campaign Turn — runs for the Player whose turn is beginning.
         services.AddScoped<IStartCampaignTurnProcess, AlertSentries>();

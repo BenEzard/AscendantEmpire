@@ -36,6 +36,24 @@ internal static class TileRegenerationCalculator
     private const long _REFILL_DIVISOR = 10;
 
     /// <summary>
+    /// How much of one resource a tile gives back at the end of a Round: <c>Percent × Base</c>, rounded down.
+    /// </summary>
+    /// <remarks>
+    /// <b>Public because a Settlement's harvest caps itself with it.</b> A Settlement takes no more from a territory tile than the tile will regrow, so the
+    /// cap and the regrowth have to be one piece of arithmetic - two copies of it could drift apart and leave a Settlement's own land falling behind. See
+    /// "Harvest" in <c>docs/design/settlements.md</c>.
+    /// <para>
+    /// Rounded down, in thousandths, so a tile never gets back - and a Settlement never takes - a thousandth more than the percentage allows.
+    /// </para>
+    /// </remarks>
+    /// <param name="baseValue">The tile's base value for the resource, which on a land tile includes whatever its rivers add.</param>
+    /// <param name="regenerationPercent">The share of <paramref name="baseValue"/> that regrows each Round, as a fraction (0.25 is 25%).</param>
+    public static ScaledAmount CalculateRegrowth(ScaledAmount baseValue, decimal regenerationPercent)
+    {
+        return ScaledAmount.FromRaw((long)Math.Floor(baseValue.RawValue * regenerationPercent));
+    }
+
+    /// <summary>
     /// The new amount taken of one resource from a tile, after the end-of-Round regeneration.
     /// </summary>
     /// <param name="taken">How much of the resource has been taken from the tile, by anyone. Never negative.</param>
@@ -60,11 +78,8 @@ internal static class TileRegenerationCalculator
             throw new ArgumentOutOfRangeException(nameof(regenerationPercent), regenerationPercent, "A Regeneration Percent must be between 0 and 1.");
         }
 
-        // Rule 1: regrow a fixed share of Base, rounded down so the tile never gets back more than the percentage allows. Taken above Base (from a stronger Player) is paid
-        // off first, like any other Taken.
-        long regrowthRaw = (long)Math.Floor(baseValue.RawValue * regenerationPercent);
-
-        ScaledAmount regrownTaken = taken - ScaledAmount.FromRaw(regrowthRaw);
+        // Rule 1: regrow a fixed share of Base. Taken above Base (from a stronger Player) is paid off first, like any other Taken.
+        ScaledAmount regrownTaken = taken - CalculateRegrowth(baseValue, regenerationPercent);
 
         // Regrowth is capped at Base, which is Taken never going below 0.
         if (regrownTaken < ScaledAmount.Zero)
