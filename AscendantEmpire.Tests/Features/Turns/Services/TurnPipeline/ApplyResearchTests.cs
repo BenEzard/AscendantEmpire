@@ -2,7 +2,11 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Technologies.Services;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
+using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Technologies;
+using AscendantEmpire.Domain.Enums.Maps;
+using AscendantEmpire.Domain.Enums.Modifiers;
 using AscendantEmpire.Domain.Enums.Technologies;
 using AscendantEmpire.Domain.Enums.Turns;
 
@@ -195,6 +199,28 @@ internal class ApplyResearchTests : InMemoryTestBase
         PlayerTechnology project = await ReloadProjectAsync();
 
         Assert.That(project.Status, Is.EqualTo(TechnologyStatus.Discovered));
+    }
+
+    [Test, Description("Discovering a Technology grants its sustenance modifiers in the same Turn, not the one after - the reconcile runs before the discovery is saved.")]
+    public async Task ShouldGrantSustenanceModifiersOnDiscoveryAsync()
+    {
+        await AddSustenanceModifierGrantAsync();
+        await AddProjectAsync(directedRequired: 100);
+        await AddResearchStateAsync(unspentDirectedPoints: 100, currentTechnologyId: _PROJECT_ID);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        List<PlayerSustenanceModifier> modifiers = await ReloadModifiersAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(modifiers, Has.Count.EqualTo(1));
+            Assert.That(modifiers[0].SourceType, Is.EqualTo(ModifierSourceType.Technology));
+            Assert.That(modifiers[0].SourceId, Is.EqualTo(_PROJECT_ID));
+            Assert.That(modifiers[0].Resource, Is.EqualTo(SustenanceResource.Hunt));
+            Assert.That(modifiers[0].BiomeTypeId, Is.EqualTo(BiomeType.Arid));
+            Assert.That(modifiers[0].PercentValue, Is.EqualTo(ScaledPercent.FromWholePercent(20).RawValue));
+        }
     }
 
     [Test, Description("Discovery clears the selection, so the Player is prompted to choose again. Left in place they would select a Discovered Technology, spend nothing every Round, and never be nudged — the end-turn check fires only on a null selection.")]
@@ -410,6 +436,33 @@ internal class ApplyResearchTests : InMemoryTestBase
             DiffusionRequired = diffusionRequired,
             AcquisitionPaidOnRound = acquisitionPaidOnRound
         };
+
+    /// <summary>Gives the project a +20% Hunt bonus on Arid, so what discovering it grants can be read off the Player afterwards.</summary>
+    private async Task AddSustenanceModifierGrantAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.TechnologySustenanceModifierGrants.Add(new TechnologySustenanceModifierGrant
+        {
+            TechnologyId = _PROJECT_ID,
+            Resource = SustenanceResource.Hunt,
+            BiomeTypeId = BiomeType.Arid,
+            FlatValue = 0,
+            PercentValue = ScaledPercent.FromWholePercent(20).RawValue
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    private async Task<List<PlayerSustenanceModifier>> ReloadModifiersAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        return await context.PlayerSustenanceModifiers
+            .AsNoTracking()
+            .Where(modifier => modifier.PlayerId == _PLAYER_ID)
+            .ToListAsync();
+    }
 
     /// <summary>Adds the Player's row for the project, defaulting to an Unlocked Technology whose cost was settled in Round 1.</summary>
     private async Task AddProjectAsync(

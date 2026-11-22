@@ -219,7 +219,7 @@ The **Regeneration Percent** is *not* player-specific. It is the biome's percent
 
 A modifier applies **empire-wide**, or to the **territory of one Settlement**.
 
-Modifiers are stored in `game.PlayerSustenanceModifier`, one row per Player, source, resource and biome (a null biome means every biome), each with a `FlatValue` and a `PercentValue`. Losing a source deletes its rows. A Player's effective values are read only through `IPlayerSustenanceValueReader`, which reads the base values live from `map.CampaignBiomes` and applies the formula below. Nothing writes modifiers yet.
+Modifiers are stored in `game.PlayerSustenanceModifier`, one row per Player, source, resource and biome (a null biome means every biome), each with a `FlatValue` and a `PercentValue`. Losing a source deletes its rows. A Player's effective values are read only through `IPlayerSustenanceValueReader`, which reads the base values live from `map.CampaignBiomes` and applies the formula below. Technology is the one source that writes them: `technology.TechnologySustenanceModifierGrant` holds what each Technology grants, and `IPlayerTechnologySustenanceModifierService` reconciles a Player's rows against what they have discovered. Specialists and Departments write nothing yet.
 
 > TODO: Settlement-scoped modifiers wait on Settlements, which are not modelled yet. A Settlement
 > will be its own entity (it may also be added to `StructureInstance`, so one read returns every

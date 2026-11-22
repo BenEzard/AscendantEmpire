@@ -186,7 +186,7 @@ must have no Regeneration Percent at all.
 | `GameId` | `int` | The Game. Implied by the Player, but carried so the game delete can purge these rows directly. |
 | `PlayerId` | `int` | The Player whose yield is modified. |
 | `SourceType` | `int` (`ModifierSourceType`: Technology, Specialist, Department) | What kind of thing granted the modifier, so every row it granted can be removed together when it is lost. |
-| `SourceId` | `int` | The particular Technology, Specialist or Department. Not a foreign key: it points at a different table per source type. Technology is modelled but grants no modifier yet; Specialists and Departments are not modelled. |
+| `SourceId` | `int` | The particular Technology, Specialist or Department. Not a foreign key: it points at a different table per source type. Technology grants modifiers; Specialists and Departments are not modelled. |
 | `Resource` | `int` (`SustenanceResource`) | Which of Forage, Hunt, Fish, Fodder is modified. |
 | `BiomeTypeId` | `int`, nullable (`BiomeType`) | The biome affected, or null for every biome. |
 | `FlatValue` | `bigint` | A flat amount added to the value. Negative for a penalty; `0` when the modifier has no flat part. |
@@ -318,14 +318,14 @@ Bone, Wood and Stone (`MaterialResource`) are the biome's `BaseBoneValue`, `Base
 
 ## What differs per Player
 
-Only the modifier formula is built, and nothing grants a modifier in play. Today every Player sees the same yield on the same tile.
+Technology is the one source that grants a modifier, so two Players differ on the same tile exactly as far as their discovered technologies do. Everything else below is still the same for everyone.
 
 ### Where a Player's value can differ
 
 | Stage | Differs per Player | State |
 | --- | --- | --- |
 | Biome base | No — global catalogue data | Built |
-| `PlayerSustenanceModifier` (flat and percentage) | Yes — per resource, per biome or every biome | Formula built; nothing writes rows |
+| `PlayerSustenanceModifier` (flat and percentage) | Yes — per resource, per biome or every biome | Built; Technology writes rows |
 | River bonus | No — constants in `RiverSustenanceBonus` | Built |
 | `Taken` | No — shared by every Player on the tile | Built |
 | Regrowth base | Designed: the owner's effective value on an owned tile | Biome base (plus river) on every tile |
@@ -336,7 +336,7 @@ Only the modifier formula is built, and nothing grants a modifier in play. Today
 
 | Lever | Scope | State |
 | --- | --- | --- |
-| Technology modifier | Empire-wide | `Technology` exists; which modifier one grants is to be authored in C#, writing rows with `SourceType = Technology` and `SourceId` its id. Nothing writes them. |
+| Technology modifier | Empire-wide | Built. Authored in `technology.TechnologySustenanceModifierGrant`, and reconciled onto rows with `SourceType = Technology` and `SourceId` the technology's id by `IPlayerTechnologySustenanceModifierService`. Biome Skill - Arid grants +20% Hunt and Forage on Arid. |
 | Specialist and Department modifiers | Empire-wide | Neither is modelled. |
 | Settlement-scoped modifiers | One Settlement's territory | Needs a `SettlementId` scope on `PlayerSustenanceModifier`. |
 | Owner's values on owned tiles | Regrowth, the 10% floor and the Settlement harvest cap | Designed in [replenishment.md](replenishment.md); regrowth still uses the biome base. |
@@ -370,4 +370,4 @@ Nothing in the codebase yet corresponds to:
   consume and expand population. These wait on Settlements.
 - **Settlement-scoped modifiers**, including the regeneration modifiers that raise an owned tile's
   Regeneration Percent. `PlayerSustenanceModifier` has no `SettlementId` scope yet.
-- **Sources of modifiers** — Technology, Specialist and Department are named by `ModifierSourceType`. Technology is modelled but grants no modifier; Specialists and Departments are not modelled. Nothing grants a modifier in play today.
+- **Specialist and Department modifiers** — `ModifierSourceType` names them, but neither is modelled, so Technology is the only source that writes rows.

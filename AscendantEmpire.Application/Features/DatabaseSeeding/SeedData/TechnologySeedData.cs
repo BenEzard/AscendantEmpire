@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.BackendContracts.Technologies;
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Technologies;
 
 namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
@@ -1041,6 +1042,22 @@ internal static class TechnologySeedData
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Acclimitisation" }
+                ],
+                // Arid, not Desert: Biome Skill - Desert is its own Technology and carries its own grants.
+                SustenanceModifierGrants =
+                [
+                    new UpsertTechnologySustenanceModifierGrantDto
+                    {
+                        Resource = SustenanceResource.Hunt,
+                        BiomeTypeId = BiomeType.Arid,
+                        PercentValue = 20
+                    },
+                    new UpsertTechnologySustenanceModifierGrantDto
+                    {
+                        Resource = SustenanceResource.Forage,
+                        BiomeTypeId = BiomeType.Arid,
+                        PercentValue = 20
+                    }
                 ]
             },
             new UpsertTechnologyDto

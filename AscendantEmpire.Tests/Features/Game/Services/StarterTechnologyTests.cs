@@ -225,6 +225,7 @@ internal class StarterTechnologyTests : GameSqlServerTestBase
             await purge.TechnologyPrerequisites.ExecuteDeleteAsync();
             await purge.TechnologyAcquisitionCosts.ExecuteDeleteAsync();
             await purge.TechnologyGrants.ExecuteDeleteAsync();
+            await purge.TechnologySustenanceModifierGrants.ExecuteDeleteAsync();
             await purge.Technologies.ExecuteDeleteAsync();
         }
 

@@ -1,5 +1,6 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Entities.Technologies;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Modifiers;
 using AscendantEmpire.Domain.Enums.Technologies;
@@ -24,11 +25,11 @@ internal sealed class PlayerTechnologySustenanceModifierService(
     {
         GrantRow[] grants = await LoadGrantsAsync(context, cancellationToken);
 
-        HashSet<int> discovered = await LoadDiscoveredAsync(context, playerId, cancellationToken);
+        List<PlayerTechnology> technologyRows = await LoadTechnologyRowsAsync(context, row => row.PlayerId == playerId, cancellationToken);
 
         List<PlayerSustenanceModifier> held = await LoadHeldAsync(context, modifier => modifier.PlayerId == playerId, cancellationToken);
 
-        return Reconcile(context, grants, discovered, gameId, playerId, held);
+        return Reconcile(context, grants, DiscoveredIn(technologyRows), gameId, playerId, held);
     }
 
     public async Task<int> ReconcileGameAsync(
@@ -43,11 +44,7 @@ internal sealed class PlayerTechnologySustenanceModifierService(
             .Select(player => player.Id)
             .ToArrayAsync(cancellationToken);
 
-        var discoveredRows = await context.PlayerTechnologies
-            .AsNoTracking()
-            .Where(row => row.GameId == gameId && row.Status == TechnologyStatus.Discovered)
-            .Select(row => new { row.PlayerId, row.TechnologyId })
-            .ToArrayAsync(cancellationToken);
+        List<PlayerTechnology> technologyRows = await LoadTechnologyRowsAsync(context, row => row.GameId == gameId, cancellationToken);
 
         List<PlayerSustenanceModifier> held = await LoadHeldAsync(context, modifier => modifier.GameId == gameId, cancellationToken);
 
@@ -55,12 +52,10 @@ internal sealed class PlayerTechnologySustenanceModifierService(
 
         foreach (int playerId in playerIds)
         {
-            HashSet<int> discovered = [.. discoveredRows.Where(row => row.PlayerId == playerId).Select(row => row.TechnologyId)];
-
             changed += Reconcile(
                 context,
                 grants,
-                discovered,
+                DiscoveredIn([.. technologyRows.Where(row => row.PlayerId == playerId)]),
                 gameId,
                 playerId,
                 [.. held.Where(modifier => modifier.PlayerId == playerId)]);
@@ -165,23 +160,40 @@ internal sealed class PlayerTechnologySustenanceModifierService(
             .ToArrayAsync(cancellationToken);
     }
 
-    private static async Task<HashSet<int>> LoadDiscoveredAsync(
+    /// <summary>
+    /// Loads the technology rows in scope, tracked and with no status filter.
+    /// </summary>
+    /// <remarks>
+    /// <b>Both of those matter.</b> The callers reconcile inside their own unit of work, with the discovery that triggered them still pending - the status is
+    /// set on a tracked entity and saved afterwards. A filter in the <c>Where</c> is evaluated by the database, which has not seen that change yet, so the
+    /// Technology just discovered would be missing and the Player would hold nothing until their next discovery committed this one. Filtering in memory reads
+    /// the tracked entity instead. This is the same shape <c>PlayerTechnologyAvailabilityService</c> uses, for the same reason.
+    /// </remarks>
+    private static async Task<List<PlayerTechnology>> LoadTechnologyRowsAsync(
         AscendantEmpireContext context,
-        int playerId,
+        Expression<Func<PlayerTechnology, bool>> scope,
         CancellationToken cancellationToken)
     {
-        int[] technologyIds = await context.PlayerTechnologies
-            .AsNoTracking()
-            .Where(row => row.PlayerId == playerId && row.Status == TechnologyStatus.Discovered)
-            .Select(row => row.TechnologyId)
-            .ToArrayAsync(cancellationToken);
+        return await context.PlayerTechnologies
+            .Where(scope)
+            .ToListAsync(cancellationToken);
+    }
 
-        return [.. technologyIds];
+    private static HashSet<int> DiscoveredIn(List<PlayerTechnology> technologyRows)
+    {
+        return [.. technologyRows
+            .Where(row => row.Status == TechnologyStatus.Discovered)
+            .Select(row => row.TechnologyId)];
     }
 
     /// <summary>
     /// Loads the Player's modifier rows tracked, since the reconcile updates and removes them.
     /// </summary>
+    /// <remarks>
+    /// Rows this service has added but not yet saved are invisible here, because a query never returns an entity that exists only in the change tracker - unlike
+    /// the status change in <see cref="LoadTechnologyRowsAsync"/>, which is a pending edit to a row that does exist. <b>So call this service at most once per
+    /// Player per unit of work</b>, or the second call adds what the first already added and the unique index refuses the save.
+    /// </remarks>
     private static async Task<List<PlayerSustenanceModifier>> LoadHeldAsync(
         AscendantEmpireContext context,
         Expression<Func<PlayerSustenanceModifier, bool>> scope,

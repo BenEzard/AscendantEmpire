@@ -2,6 +2,7 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 using AscendantEmpire.Application.Features.Technologies.Handlers;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Technologies;
 using AscendantEmpire.BackendContracts.Technologies.GetExperienceTypes;
 using AscendantEmpire.BackendContracts.Technologies.GetTechnologies;
@@ -305,7 +306,9 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
     [Test, Description("The real seeded catalogue reads back whole, so a shape the seed produces but the read cannot serve is caught here.")]
     public async Task ShouldReturnTheWholeSeededCatalogue()
     {
+        // Both of the technology seed's own declared dependencies: its experience types by code, and the Arid biome its modifier grants name.
         await UpsertExperienceTypesAsync(ExperienceTypeSeedData.Build());
+        await AddAridBiomeAsync();
         await UpsertTechnologiesAsync(TechnologySeedData.Build());
 
         IReadOnlyCollection<CatalogueTechnology> catalogue = await GetAsync();
@@ -380,8 +383,8 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
             IsTraversable = true,
             MapEditorHtmlColor = "#fcfda4",
             RegenerationPercent = 0.15m,
-            BaseForageValue = 30_000,
-            BaseHuntValue = 30_000
+            BaseForageValue = ScaledAmount.FromWhole(30).RawValue,
+            BaseHuntValue = ScaledAmount.FromWhole(30).RawValue
         });
 
         await _context.SaveChangesAsync();

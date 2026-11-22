@@ -17,9 +17,9 @@ namespace AscendantEmpire.Domain.Entities.Technologies;
 /// dangling. That is the same trade <c>ModifierSourceType</c> makes, and this is the first place it actually bites, since these targets do exist.
 /// </para>
 /// <para>
-/// Modifier-granting technologies are <b>not</b> expressed here. A Technology that gives +10% forage writes a <c>PlayerSustenanceModifier</c> row with
-/// <c>SourceType = Technology</c> and <c>SourceId</c> set to its own id, and losing the Technology is a delete by that pair. Which modifier a Technology grants
-/// is authored in C#, not as catalogue data.
+/// Modifier-granting technologies are <b>not</b> expressed here. A grant names a target; a modifier carries parameters - a resource, a biome, and how much -
+/// which this table has nowhere to put. They are authored in <see cref="TechnologySustenanceModifierGrant"/> instead, and projected onto a Player's
+/// <c>PlayerSustenanceModifier</c> rows by <c>IPlayerTechnologySustenanceModifierService</c>.
 /// </para>
 /// </remarks>
 public class TechnologyGrant

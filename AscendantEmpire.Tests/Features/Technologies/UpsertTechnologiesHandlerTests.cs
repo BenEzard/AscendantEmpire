@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 using AscendantEmpire.Application.Features.Technologies.Handlers;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Technologies;
 using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
@@ -782,7 +783,7 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
     [Test, Description("The real seed data upserts cleanly - which also proves its prerequisite graph is acyclic, since the upsert rejects a cycle outright.")]
     public async Task ShouldUpsertTheRealSeedData()
     {
-        await SeedExperienceTypesAsync();
+        await SeedRealCatalogueDependenciesAsync();
 
         ServiceResultBase result = await _handler.Handle(
             new UpsertTechnologiesRequest(TechnologySeedData.Build()),
@@ -798,7 +799,7 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
     [Test, Description("Re-running the real seed data changes no row counts, which is what makes the seed safe to run over an existing database.")]
     public async Task ShouldBeIdempotentOverTheRealSeedData()
     {
-        await SeedExperienceTypesAsync();
+        await SeedRealCatalogueDependenciesAsync();
         await UpsertAsync(TechnologySeedData.Build());
 
         int technologies = _context.Technologies.Count();
@@ -820,7 +821,7 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
     {
         IReadOnlyCollection<UpsertTechnologyDto> catalogue = TechnologySeedData.Build();
 
-        await SeedExperienceTypesAsync();
+        await SeedRealCatalogueDependenciesAsync();
         await UpsertAsync(catalogue);
 
         // Counted off the payload rather than written in as literals: the catalogue is hand-edited often, and a figure pinned here would be stale within a
@@ -829,6 +830,7 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
         int authoredOptionalEdges = catalogue.Sum(technology => technology.Prerequisites
             .Count(prerequisite => prerequisite.PrerequisiteKind == TechnologyPrerequisiteKind.Optional));
         int authoredExperienceSources = catalogue.Count(technology => technology.ExperienceTypeCodes.Count > 0);
+        int authoredModifierGrants = catalogue.Sum(technology => technology.SustenanceModifierGrants.Count);
 
         Assert.Multiple(() =>
         {
@@ -840,13 +842,14 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
             Assert.That(
                 _context.TechnologyExperienceTypes.Select(mapping => mapping.TechnologyId).Distinct().Count(),
                 Is.EqualTo(authoredExperienceSources));
+            Assert.That(_context.TechnologySustenanceModifierGrants.Count(), Is.EqualTo(authoredModifierGrants));
         });
     }
 
     [Test, Description("Every seeded technology sits in the Stone era, since no era has been assigned to any of them yet.")]
     public async Task ShouldSeedEveryTechnologyInTheStoneEraUntilErasAreAssigned()
     {
-        await SeedExperienceTypesAsync();
+        await SeedRealCatalogueDependenciesAsync();
         await UpsertAsync(TechnologySeedData.Build());
 
         Assert.That(_context.Technologies.Select(technology => technology.Era).Distinct(), Is.EqualTo(new[] { TechnologyEra.Stone }));
@@ -933,6 +936,19 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
     }
 
     /// <summary>
+    /// Seeds what the real technology catalogue resolves against: its experience types by code, and the Arid biome its sustenance modifier grants name.
+    /// </summary>
+    /// <remarks>
+    /// These are the same two dependencies <c>TechnologySeedStep.DependsOn</c> declares, so a grant authored against a biome with no base for the resource
+    /// fails here rather than at seed time.
+    /// </remarks>
+    private async Task SeedRealCatalogueDependenciesAsync()
+    {
+        await SeedExperienceTypesAsync();
+        await AddAridBiomeAsync();
+    }
+
+    /// <summary>
     /// Seeds the real experience type catalogue, which the real technology seed data names by code.
     /// </summary>
     private async Task SeedExperienceTypesAsync()
@@ -966,8 +982,8 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
             IsTraversable = true,
             MapEditorHtmlColor = "#fcfda4",
             RegenerationPercent = 0.15m,
-            BaseForageValue = 30_000,
-            BaseHuntValue = 30_000
+            BaseForageValue = ScaledAmount.FromWhole(30).RawValue,
+            BaseHuntValue = ScaledAmount.FromWhole(30).RawValue
         });
 
         await _context.SaveChangesAsync();

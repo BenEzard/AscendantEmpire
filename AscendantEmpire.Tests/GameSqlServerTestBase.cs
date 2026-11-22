@@ -8,6 +8,7 @@ using AscendantEmpire.Application.Features.Maps.MapResources.Services;
 using AscendantEmpire.Application.Features.Assets.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Services;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
@@ -192,6 +193,31 @@ public class GameSqlServerTestBase : SqlServerTestBase
         {
             throw new InvalidOperationException(
                 $"Seeding the experience type catalogue for the test failed: {string.Join("; ", experienceTypeResult.Errors)}");
+        }
+
+        // The Arid biome, because the catalogue's sustenance modifier grants name it and the upsert rejects a grant whose biome has no base for the resource.
+        // Its sustenance figures are the ones BiomeSeedData authors, so the bonus a test reads is the bonus production gives. The rest of the row is only
+        // what the column constraints need.
+        if (!ctx.CampaignBiomes.Any(biome => biome.BiomeTypeId == BiomeType.Arid))
+        {
+            ctx.CampaignBiomes.Add(new CampaignBiome
+            {
+                BiomeTypeId = BiomeType.Arid,
+                Name = "Arid",
+                MapEditorHtmlColor = "#fcfda4",
+                MovementCost = 1.0m,
+                DoesBlockSight = false,
+                IsWater = false,
+                IsTraversable = true,
+                RegenerationPercent = 0.1m,
+                IsPaintableOnCampaignMap = true,
+                CanBeElevated = true,
+                BaseForageValue = ScaledAmount.FromWhole(30).RawValue,
+                BaseHuntValue = ScaledAmount.FromWhole(30).RawValue,
+                BaseFodderValue = ScaledAmount.FromWhole(20).RawValue
+            });
+
+            await ctx.SaveChangesAsync();
         }
 
         var technologyHandler = new UpsertTechnologiesHandler(NullLogger<UpsertTechnologiesHandler>.Instance, ctx);
