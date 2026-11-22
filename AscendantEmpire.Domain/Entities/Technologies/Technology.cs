@@ -122,6 +122,14 @@ public sealed class Technology
     public ICollection<TechnologyGrant> Grants { get; set; } = [];
 
     /// <summary>
+    /// Which sustenance modifiers discovering this Technology grants.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="Grants"/> because an unlock and a modifier are different shapes - see <see cref="TechnologySustenanceModifierGrant"/>.
+    /// </remarks>
+    public ICollection<TechnologySustenanceModifierGrant> SustenanceModifierGrants { get; set; } = [];
+
+    /// <summary>
     /// Which kinds of experience feed this Technology's experience bucket.
     /// </summary>
     public ICollection<TechnologyExperienceType> ExperienceTypes { get; set; } = [];

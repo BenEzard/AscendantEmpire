@@ -3370,6 +3370,43 @@ namespace AscendantEmpire.Application.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.TechnologySustenanceModifierGrant", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BiomeTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("FlatValue")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("PercentValue")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Resource")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TechnologyId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BiomeTypeId");
+
+                    b.HasIndex("TechnologyId", "Resource", "BiomeTypeId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_TechnologySustenanceModifierGrant_Technology_Resource_Biome");
+
+                    b.ToTable("TechnologySustenanceModifierGrant", "technology", t =>
+                        {
+                            t.HasCheckConstraint("CK_TechnologySustenanceModifierGrant_HasValue", "[FlatValue] <> 0 OR [PercentValue] <> 0");
+                        });
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.PlayerTurn", b =>
                 {
                     b.Property<int>("Id")
@@ -6271,6 +6308,24 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Technology");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.TechnologySustenanceModifierGrant", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignBiome", null)
+                        .WithMany()
+                        .HasForeignKey("BiomeTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_TechnologySustenanceModifierGrant_CampaignBiome_BiomeTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Technologies.Technology", "Technology")
+                        .WithMany("SustenanceModifierGrants")
+                        .HasForeignKey("TechnologyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_TechnologySustenanceModifierGrant_Technology_TechnologyId");
+
+                    b.Navigation("Technology");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.PlayerTurn", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
@@ -6987,6 +7042,8 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Grants");
 
                     b.Navigation("Prerequisites");
+
+                    b.Navigation("SustenanceModifierGrants");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.TurnQueue", b =>

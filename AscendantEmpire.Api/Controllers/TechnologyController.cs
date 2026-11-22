@@ -95,6 +95,13 @@ public class TechnologyController : ControllerBase
                     TargetDisplayName = grant.TargetDisplayName,
                     GrantEffect = grant.GrantEffect
                 })],
+                SustenanceModifierGrants = [.. technology.SustenanceModifierGrants.Select(grant => new DTCatalogueSustenanceModifierGrant
+                {
+                    Resource = grant.Resource,
+                    BiomeTypeId = grant.BiomeTypeId,
+                    FlatValue = grant.FlatValue,
+                    PercentValue = grant.PercentValue
+                })],
                 ExperienceSources = [.. technology.ExperienceSources.Select(source => new DTCatalogueExperienceSource
                 {
                     ExperienceTypeId = source.ExperienceTypeId,

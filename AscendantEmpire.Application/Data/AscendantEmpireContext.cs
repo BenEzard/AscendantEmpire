@@ -329,6 +329,11 @@ public class AscendantEmpireContext : DbContext
     public DbSet<TechnologyGrant> TechnologyGrants { get; set; }
 
     /// <summary>
+    /// Which sustenance modifiers each Technology grants when discovered - the catalogue the per-Player modifier rows are derived from.
+    /// </summary>
+    public DbSet<TechnologySustenanceModifierGrant> TechnologySustenanceModifierGrants { get; set; }
+
+    /// <summary>
     /// Which kinds of experience feed which Technologies. A mapping only: the points per action are decided by the action.
     /// </summary>
     public DbSet<TechnologyExperienceType> TechnologyExperienceTypes { get; set; }
@@ -4197,6 +4202,45 @@ public class AscendantEmpireContext : DbContext
             // Entity Setup Tool when two technologies grant the same thing.
             entity.HasIndex(e => new { e.TargetType, e.TargetId })
                 .HasDatabaseName("IX_TechnologyGrant_Target");
+        });
+
+        // --- TechnologySustenanceModifierGrant -----------------------------------------
+        // One sustenance modifier a Technology grants. A Player's own rows are derived from this and their discovered set, never copied onto a running total.
+        modelBuilder.Entity<TechnologySustenanceModifierGrant>(entity =>
+        {
+            // A grant with neither part would change nothing, and would still take up the Technology's one row for that resource and biome.
+            entity.ToTable("TechnologySustenanceModifierGrant", schema, table => table.HasCheckConstraint(
+                "CK_TechnologySustenanceModifierGrant_HasValue",
+                "[FlatValue] <> 0 OR [PercentValue] <> 0"));
+
+            // A surrogate key, unlike the Technology's other children: the natural key includes the nullable BiomeTypeId, which cannot be part of a primary key.
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Resource).HasConversion<int>().IsRequired();
+
+            entity.HasOne(e => e.Technology)
+                .WithMany(e => e.SustenanceModifierGrants)
+                .HasForeignKey(e => e.TechnologyId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_TechnologySustenanceModifierGrant_Technology_TechnologyId");
+
+            // Optional: a null biome is a modifier to every biome.
+            entity.HasOne<CampaignBiome>()
+                .WithMany()
+                .HasForeignKey(e => e.BiomeTypeId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_TechnologySustenanceModifierGrant_CampaignBiome_BiomeTypeId");
+
+            // One grant per Technology, resource and biome, so a Technology giving both a flat and a percentage amount does it in one row.
+            //
+            // HasFilter(null) matters, for the same reason as UX_PlayerSustenanceModifier_Player_Source_Resource_Biome: EF's SQL Server convention filters a unique index on a
+            // nullable column to "IS NOT NULL", which would let one Technology hold any number of all-biome grants for the same resource. Unfiltered, SQL Server treats NULLs
+            // as equal, which is the rule wanted here.
+            entity.HasIndex(e => new { e.TechnologyId, e.Resource, e.BiomeTypeId })
+                .IsUnique()
+                .HasFilter(null)
+                .HasDatabaseName("UX_TechnologySustenanceModifierGrant_Technology_Resource_Biome");
         });
 
         // --- TechnologyExperienceType --------------------------------------------------

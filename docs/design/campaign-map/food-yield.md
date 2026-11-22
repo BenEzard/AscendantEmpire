@@ -186,7 +186,7 @@ must have no Regeneration Percent at all.
 | `GameId` | `int` | The Game. Implied by the Player, but carried so the game delete can purge these rows directly. |
 | `PlayerId` | `int` | The Player whose yield is modified. |
 | `SourceType` | `int` (`ModifierSourceType`: Technology, Specialist, Department) | What kind of thing granted the modifier, so every row it granted can be removed together when it is lost. |
-| `SourceId` | `int` | The particular Technology, Specialist or Department. Not a foreign key: it points at a different table per source type. Technology is modelled; Specialists and Departments are not. |
+| `SourceId` | `int` | The particular Technology, Specialist or Department. Not a foreign key: it points at a different table per source type. Technology is modelled but grants no modifier yet; Specialists and Departments are not modelled. |
 | `Resource` | `int` (`SustenanceResource`) | Which of Forage, Hunt, Fish, Fodder is modified. |
 | `BiomeTypeId` | `int`, nullable (`BiomeType`) | The biome affected, or null for every biome. |
 | `FlatValue` | `bigint` | A flat amount added to the value. Negative for a penalty; `0` when the modifier has no flat part. |
@@ -305,6 +305,56 @@ modifier constraints (`PlayerSustenanceModifierConstraintTests`).
    on unowned land plus the same river bonus — [replenishment.md](replenishment.md).
 3. How long a tile can feed a set of Forces plays those two forward together —
    [support-indicator.md](support-indicator.md).
+4. At the start of every Round each Settlement draws from its territory through `HarvestSettlementTerritory`: per tile and resource, `MIN(available, regrowth, civilians × CIVILIAN_HARVEST_RATE)`, where regrowth is the step 2 figure. What it takes is added to the tile's `Taken`, and the end-of-Round regrowth gives exactly that back — see "Harvest" in [../settlements.md](../settlements.md#harvest).
+
+## Material yields
+
+Bone, Wood and Stone (`MaterialResource`) are the biome's `BaseBoneValue`, `BaseWoodValue` and `BaseStoneValue`, and work nothing like sustenance:
+
+- **Static.** Nothing is recorded against the tile and nothing regrows; the same amount is there every Round, indefinitely.
+- **The same for every Player.** No modifier, river or tile bonus applies to them, which is why `MaterialResource` is a separate enum from `SustenanceResource`.
+- **Only a Settlement takes them.** Its harvest takes `MIN(biome base, civilians × CIVILIAN_HARVEST_RATE)` per territory tile each Round ([SettlementHarvestCalculator.cs](../../../AscendantEmpire.Application/Features/Settlements/Classes/SettlementHarvestCalculator.cs)). A Force does not gather them.
+- **Bone is a biome value, not a by-product of hunting.** Hunting more yields no more bone.
+
+## What differs per Player
+
+Only the modifier formula is built, and nothing grants a modifier in play. Today every Player sees the same yield on the same tile.
+
+### Where a Player's value can differ
+
+| Stage | Differs per Player | State |
+| --- | --- | --- |
+| Biome base | No — global catalogue data | Built |
+| `PlayerSustenanceModifier` (flat and percentage) | Yes — per resource, per biome or every biome | Formula built; nothing writes rows |
+| River bonus | No — constants in `RiverSustenanceBonus` | Built |
+| `Taken` | No — shared by every Player on the tile | Built |
+| Regrowth base | Designed: the owner's effective value on an owned tile | Biome base (plus river) on every tile |
+| Regeneration Percent | Designed: plus the owner's Settlement-scoped points on an owned tile | Biome value on every tile |
+| What a Force draws | Designed: gathering bonuses reduce the draw | Not built |
+
+### The levers
+
+| Lever | Scope | State |
+| --- | --- | --- |
+| Technology modifier | Empire-wide | `Technology` exists; which modifier one grants is to be authored in C#, writing rows with `SourceType = Technology` and `SourceId` its id. Nothing writes them. |
+| Specialist and Department modifiers | Empire-wide | Neither is modelled. |
+| Settlement-scoped modifiers | One Settlement's territory | Needs a `SettlementId` scope on `PlayerSustenanceModifier`. |
+| Owner's values on owned tiles | Regrowth, the 10% floor and the Settlement harvest cap | Designed in [replenishment.md](replenishment.md); regrowth still uses the biome base. |
+| Settlement regeneration modifiers | Regeneration Percent points on an owned tile | Designed in [replenishment.md](replenishment.md). |
+| Force gathering bonuses | One Force's draw | Designed in [depletion.md](depletion.md); not the same thing as a modifier, since it lowers the draw rather than raising the tile. |
+| Terrain improvements (Irrigation, Farm) | The tile an owner improves | No schema; see [infrastructure.md](infrastructure.md). |
+| Equipment chains and productivity rate | — | No schema. |
+| Civilian allocation | Which tiles a Settlement's civilians work | `SettlementWorkAllocation` puts the whole population on every tile. |
+
+Never per Player: biome bases, Regeneration Percent, the river amounts, Oasis and Reef, and every material yield.
+
+### Interactions to know
+
+- **Sustenance modifiers do not raise a Settlement's harvest.** The harvest is capped at regrowth, and regrowth is measured against the biome base, so a positive modifier raises only `available`, which is never the smallest term. A negative modifier can lower it. Modifiers pay a Settlement once regrowth on owned tiles uses the owner's values; until then they help Forces only.
+- **Null and `0` are different bases.** No modifier gives a biome a resource whose base is null; a base of `0` can be raised. A Technology that opens Hunt in a biome needs that biome's Hunt to be `0`. River Fish is the one exception to null staying null.
+- **The river compounds; modifiers add.** Two modifiers' percentages sum, while the river's percentage is applied to the Player's effective value after them.
+- **`Taken` is shared.** A Player with stronger modifiers can strip a tile past a weaker Player's effective value, who then sees nothing until regrowth brings `Taken` back below it.
+- **Fodder is modified and harvested but not eaten.** A Settlement banks it; nothing consumes it, since `mount-fodder` is a `Fuel` supply set.
 
 ## Not yet implemented
 
@@ -320,6 +370,4 @@ Nothing in the codebase yet corresponds to:
   consume and expand population. These wait on Settlements.
 - **Settlement-scoped modifiers**, including the regeneration modifiers that raise an owned tile's
   Regeneration Percent. `PlayerSustenanceModifier` has no `SettlementId` scope yet.
-- **Sources of modifiers** — Technology, Specialist and Department are named by `ModifierSourceType`
-  but none is modelled, so `SourceId` carries no foreign key and nothing grants a modifier in play
-  today.
+- **Sources of modifiers** — Technology, Specialist and Department are named by `ModifierSourceType`. Technology is modelled but grants no modifier; Specialists and Departments are not modelled. Nothing grants a modifier in play today.

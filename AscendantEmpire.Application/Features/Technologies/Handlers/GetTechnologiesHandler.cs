@@ -87,6 +87,17 @@ internal class GetTechnologiesHandler(
                         ExperienceTypeDisplayName = mapping.ExperienceType.DisplayName
                     })
                     .ToList(),
+                SustenanceModifierGrants = technology.SustenanceModifierGrants
+                    .OrderBy(grant => grant.Resource)
+                    .ThenBy(grant => grant.BiomeTypeId)
+                    .Select(grant => new CatalogueSustenanceModifierGrant
+                    {
+                        Resource = grant.Resource,
+                        BiomeTypeId = grant.BiomeTypeId,
+                        FlatValue = (int)grant.FlatValue,
+                        PercentValue = (int)grant.PercentValue
+                    })
+                    .ToList(),
                 RawGrants = technology.Grants
                     .Select(grant => new
                     {
@@ -120,6 +131,7 @@ internal class GetTechnologiesHandler(
             AcquisitionCosts = technology.AcquisitionCosts,
             Prerequisites = technology.Prerequisites,
             ExperienceSources = technology.ExperienceSources,
+            SustenanceModifierGrants = technology.SustenanceModifierGrants,
             Grants = [.. technology.RawGrants
                 .Select(grant =>
                 {

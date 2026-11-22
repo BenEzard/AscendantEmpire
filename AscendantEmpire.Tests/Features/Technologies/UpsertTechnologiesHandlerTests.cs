@@ -4,8 +4,10 @@ using AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 using AscendantEmpire.Application.Features.Technologies.Handlers;
 using AscendantEmpire.BackendContracts.Technologies;
 using AscendantEmpire.Domain.Entities.Assets;
+using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Technologies;
 using AscendantEmpire.Domain.Enums.Assets;
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Technologies;
 
 using Microsoft.EntityFrameworkCore;
@@ -45,7 +47,7 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
         _context?.Dispose();
     }
 
-    // --- Writing ---------------------------------------------------------------------
+    #region Writing
 
     [Test, Description("Codes are stored verbatim rather than derived, because prerequisites reference them and a reworded name must not re-key the row.")]
     public async Task ShouldStoreSuppliedCodesVerbatim()
@@ -254,7 +256,9 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
         Assert.That(_context.TechnologyExperienceTypes.Single().ExperienceTypeId, Is.EqualTo(experienceTypeId));
     }
 
-    // --- Cycles ----------------------------------------------------------------------
+    #endregion
+
+    #region Cycles
 
     [Test, Description("A two-technology cycle inside one request is rejected, since the database cannot express acyclicity and both would be unreachable.")]
     public async Task ShouldRejectATwoTechnologyCycleWithinOneRequest()
@@ -361,7 +365,9 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
         });
     }
 
-    // --- Rejections ------------------------------------------------------------------
+    #endregion
+
+    #region Rejections
 
     [Test, Description("An empty request fails rather than silently succeeding, so a misconfigured seed step is reported instead of looking like a no-op.")]
     public async Task ShouldFailWhenNoTechnologiesAreSupplied()
@@ -585,7 +591,193 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
         });
     }
 
-    // --- The real seed data ----------------------------------------------------------
+    #endregion
+
+    #region Modifier grants
+
+    [Test, Description("A modifier grant is stored against its resource and biome, with whole numbers scaled on the way in so a designer never writes a raw value.")]
+    public async Task ShouldScaleModifierGrantValuesWhenWritten()
+    {
+        await AddAridBiomeAsync();
+
+        await UpsertAsync(
+        [
+            Technology("Stone.BiomeSkillArid", "Biome Skill - Arid") with
+            {
+                SustenanceModifierGrants = [ModifierGrant(SustenanceResource.Hunt, BiomeType.Arid, flatValue: 5, percentValue: 20)]
+            }
+        ]);
+
+        TechnologySustenanceModifierGrant grant = _context.TechnologySustenanceModifierGrants.Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(grant.Resource, Is.EqualTo(SustenanceResource.Hunt));
+            Assert.That(grant.BiomeTypeId, Is.EqualTo(BiomeType.Arid));
+            Assert.That(grant.PercentValue, Is.EqualTo(200));
+            Assert.That(grant.FlatValue, Is.EqualTo(5_000));
+        });
+    }
+
+    [Test, Description("A grant naming no biome is accepted without checking any base, because an all-biomes grant is necessarily inert wherever the resource is absent.")]
+    public async Task ShouldAllowWhenModifierGrantAppliesToEveryBiome()
+    {
+        await UpsertAsync(
+        [
+            Technology("Stone.Alpha", "Alpha") with
+            {
+                SustenanceModifierGrants = [ModifierGrant(SustenanceResource.Fish, biome: null, percentValue: 20)]
+            }
+        ]);
+
+        Assert.That(_context.TechnologySustenanceModifierGrants.Single().BiomeTypeId, Is.Null);
+    }
+
+    [Test, Description("Grants are replaced wholesale, so a grant dropped from the request is removed rather than left behind.")]
+    public async Task ShouldReplaceModifierGrantsWholesaleWhenUpserted()
+    {
+        await AddAridBiomeAsync();
+
+        await UpsertAsync(
+        [
+            Technology("Stone.Alpha", "Alpha") with
+            {
+                SustenanceModifierGrants =
+                [
+                    ModifierGrant(SustenanceResource.Hunt, BiomeType.Arid, percentValue: 20),
+                    ModifierGrant(SustenanceResource.Forage, BiomeType.Arid, percentValue: 20)
+                ]
+            }
+        ]);
+
+        await UpsertAsync(
+        [
+            Technology("Stone.Alpha", "Alpha") with
+            {
+                SustenanceModifierGrants = [ModifierGrant(SustenanceResource.Hunt, BiomeType.Arid, percentValue: 30)]
+            }
+        ]);
+
+        TechnologySustenanceModifierGrant grant = _context.TechnologySustenanceModifierGrants.Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(grant.Resource, Is.EqualTo(SustenanceResource.Hunt));
+            Assert.That(grant.PercentValue, Is.EqualTo(300));
+        });
+    }
+
+    [Test, Description("An empty collection clears a technology's grants, so removing the last one through the editor actually removes it.")]
+    public async Task ShouldClearModifierGrantsWhenEmptyCollectionSupplied()
+    {
+        await AddAridBiomeAsync();
+
+        await UpsertAsync(
+        [
+            Technology("Stone.Alpha", "Alpha") with
+            {
+                SustenanceModifierGrants = [ModifierGrant(SustenanceResource.Hunt, BiomeType.Arid, percentValue: 20)]
+            }
+        ]);
+
+        await UpsertAsync([Technology("Stone.Alpha", "Alpha")]);
+
+        Assert.That(_context.TechnologySustenanceModifierGrants, Is.Empty);
+    }
+
+    [Test, Description("The same resource and biome granted twice by one technology is rejected by name, since in-memory cannot reproduce the unique index that would otherwise catch it.")]
+    public async Task ShouldRejectWhenTechnologyGrantsSameResourceAndBiomeTwice()
+    {
+        await AddAridBiomeAsync();
+
+        ServiceResultBase result = await _handler.Handle(
+            new UpsertTechnologiesRequest(
+            [
+                Technology("Stone.Alpha", "Alpha") with
+                {
+                    SustenanceModifierGrants =
+                    [
+                        ModifierGrant(SustenanceResource.Hunt, BiomeType.Arid, percentValue: 20),
+                        ModifierGrant(SustenanceResource.Hunt, BiomeType.Arid, percentValue: 30)
+                    ]
+                }
+            ]),
+            CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("Stone.Alpha"));
+        });
+    }
+
+    [Test, Description("A grant with neither a flat nor a percentage part is rejected by name, mirroring CK_TechnologySustenanceModifierGrant_HasValue.")]
+    public async Task ShouldRejectWhenModifierGrantHasNeitherFlatNorPercent()
+    {
+        await AddAridBiomeAsync();
+
+        ServiceResultBase result = await _handler.Handle(
+            new UpsertTechnologiesRequest(
+            [
+                Technology("Stone.Alpha", "Alpha") with
+                {
+                    SustenanceModifierGrants = [ModifierGrant(SustenanceResource.Hunt, BiomeType.Arid)]
+                }
+            ]),
+            CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("Stone.Alpha"));
+        });
+    }
+
+    [Test, Description("A grant naming a biome with no base for its resource is rejected, because no modifier can raise a null base and the grant would be a permanent no-op.")]
+    public async Task ShouldRejectWhenModifierGrantNamesBiomeWithNoBaseForResource()
+    {
+        await AddAridBiomeAsync();
+
+        ServiceResultBase result = await _handler.Handle(
+            new UpsertTechnologiesRequest(
+            [
+                Technology("Stone.Alpha", "Alpha") with
+                {
+                    SustenanceModifierGrants = [ModifierGrant(SustenanceResource.Fish, BiomeType.Arid, percentValue: 20)]
+                }
+            ]),
+            CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("Fish"));
+        });
+    }
+
+    [Test, Description("A grant naming a biome that is not in the catalogue at all is rejected, naming the Biomes catalogue as the thing to seed first.")]
+    public async Task ShouldRejectWhenModifierGrantNamesUnseededBiome()
+    {
+        ServiceResultBase result = await _handler.Handle(
+            new UpsertTechnologiesRequest(
+            [
+                Technology("Stone.Alpha", "Alpha") with
+                {
+                    SustenanceModifierGrants = [ModifierGrant(SustenanceResource.Hunt, BiomeType.Arid, percentValue: 20)]
+                }
+            ]),
+            CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("Biomes"));
+        });
+    }
+
+    #endregion
+
+    #region The real seed data
 
     [Test, Description("The real seed data upserts cleanly - which also proves its prerequisite graph is acyclic, since the upsert rejects a cycle outright.")]
     public async Task ShouldUpsertTheRealSeedData()
@@ -660,7 +852,9 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
         Assert.That(_context.Technologies.Select(technology => technology.Era).Distinct(), Is.EqualTo(new[] { TechnologyEra.Stone }));
     }
 
-    // --- Helpers ---------------------------------------------------------------------
+    #endregion
+
+    #region Helpers
 
     private static UpsertTechnologyDto Technology(string code, string displayName)
     {
@@ -758,4 +952,41 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
 
         Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
     }
+
+    /// <summary>
+    /// A biome with Forage and Hunt bases but no Fish or Fodder, so a grant naming an absent base can be told from one naming a present base.
+    /// </summary>
+    private async Task AddAridBiomeAsync()
+    {
+        _context.CampaignBiomes.Add(new CampaignBiome
+        {
+            BiomeTypeId = BiomeType.Arid,
+            Name = "Arid",
+            MovementCost = 1m,
+            IsTraversable = true,
+            MapEditorHtmlColor = "#fcfda4",
+            RegenerationPercent = 0.15m,
+            BaseForageValue = 30_000,
+            BaseHuntValue = 30_000
+        });
+
+        await _context.SaveChangesAsync();
+    }
+
+    private static UpsertTechnologySustenanceModifierGrantDto ModifierGrant(
+        SustenanceResource resource,
+        BiomeType? biome,
+        int flatValue = 0,
+        int percentValue = 0)
+    {
+        return new UpsertTechnologySustenanceModifierGrantDto
+        {
+            Resource = resource,
+            BiomeTypeId = biome,
+            FlatValue = flatValue,
+            PercentValue = percentValue
+        };
+    }
+
+    #endregion
 }

@@ -80,6 +80,11 @@ public record CatalogueTechnology
     public required IReadOnlyCollection<CatalogueGrant> Grants { get; init; }
 
     /// <summary>
+    /// The sustenance modifiers discovering it grants, in resource and then biome order.
+    /// </summary>
+    public required IReadOnlyCollection<CatalogueSustenanceModifierGrant> SustenanceModifierGrants { get; init; }
+
+    /// <summary>
     /// Which kinds of experience fill its experience bucket.
     /// </summary>
     public required IReadOnlyCollection<CatalogueExperienceSource> ExperienceSources { get; init; }

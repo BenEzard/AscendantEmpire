@@ -1,8 +1,10 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Technologies;
 using AscendantEmpire.Domain.Entities.Technologies;
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Technologies;
 
 using Microsoft.EntityFrameworkCore;
@@ -164,6 +166,7 @@ internal class UpsertTechnologiesHandler(
 
         await SyncAcquisitionCostsAsync(plan, existingTechnologies, lookups, touchedTechnologyIds, cancellationToken);
         await SyncGrantsAsync(plan, existingTechnologies, lookups, touchedTechnologyIds, cancellationToken);
+        await SyncSustenanceModifierGrantsAsync(plan, existingTechnologies, touchedTechnologyIds, cancellationToken);
         await SyncExperienceTypesAsync(plan, existingTechnologies, lookups, touchedTechnologyIds, cancellationToken);
         await SyncPrerequisitesAsync(plan, existingTechnologies, referencedTechnologies, touchedTechnologyIds, cancellationToken);
 
@@ -171,11 +174,12 @@ internal class UpsertTechnologiesHandler(
 
         logger.LogInformation(
             "Upserted {TechnologyCount} technologies, {CostCount} acquisition costs, {PrerequisiteCount} prerequisites, {GrantCount} grants, "
-            + "{ExperienceCount} experience mappings.",
+            + "{ModifierGrantCount} modifier grants, {ExperienceCount} experience mappings.",
             plan.Length,
             plan.Sum(item => item.Dto.AcquisitionCosts.Count),
             plan.Sum(item => item.Dto.Prerequisites.Count),
             plan.Sum(item => item.Dto.Grants.Count),
+            plan.Sum(item => item.Dto.SustenanceModifierGrants.Count),
             plan.Sum(item => item.Dto.ExperienceTypeCodes.Count));
 
         return SuccessNoContent();
@@ -309,6 +313,27 @@ internal class UpsertTechnologiesHandler(
             errors.Add($"Technology grants the same target more than once: {string.Join(", ", duplicateGrants)}");
         }
 
+        string[] duplicateModifierGrants = [.. plan
+            .Where(item => item.Dto.SustenanceModifierGrants
+                .GroupBy(grant => new { grant.Resource, grant.BiomeTypeId })
+                .Any(group => group.Count() > 1))
+            .Select(item => item.Dto.Code)];
+
+        if (duplicateModifierGrants.Length > 0)
+        {
+            errors.Add($"Technology grants a modifier to the same resource and biome more than once: {string.Join(", ", duplicateModifierGrants)}");
+        }
+
+        // Mirrors CK_TechnologySustenanceModifierGrant_HasValue. A grant with neither part changes nothing and still uses up the Technology's one row for that resource and biome.
+        string[] valuelessModifierGrants = [.. plan
+            .Where(item => item.Dto.SustenanceModifierGrants.Any(grant => grant.FlatValue == 0 && grant.PercentValue == 0))
+            .Select(item => item.Dto.Code)];
+
+        if (valuelessModifierGrants.Length > 0)
+        {
+            errors.Add($"Technology grants a modifier with neither a flat nor a percentage part: {string.Join(", ", valuelessModifierGrants)}");
+        }
+
         string[] duplicateExperienceTypes = [.. plan
             .Where(item => item.Dto.ExperienceTypeCodes
                 .GroupBy(code => code)
@@ -366,6 +391,21 @@ internal class UpsertTechnologiesHandler(
             errors.Add($"Unknown cost Asset code(s): {string.Join(", ", unknownAssets)}. The Assets catalogue must be seeded first.");
         }
 
+        // A grant naming a biome with no base for its resource could never do anything: SustenanceValueCalculator leaves a null base null whatever the modifiers say. An
+        // all-biomes grant is exempt, because it is necessarily inert wherever the resource is absent and that is correct rather than an authoring mistake.
+        string[] baselessModifierGrants = [.. plan
+            .SelectMany(item => item.Dto.SustenanceModifierGrants)
+            .Where(grant => grant.BiomeTypeId is not null && !lookups.HasSustenanceBase(grant.BiomeTypeId.Value, grant.Resource))
+            .Select(grant => $"{grant.BiomeTypeId}/{grant.Resource}")
+            .Distinct()];
+
+        if (baselessModifierGrants.Length > 0)
+        {
+            errors.Add(
+                $"Modifier grant(s) name a biome with no base value for the resource: {string.Join(", ", baselessModifierGrants)}. "
+                + "No modifier can raise a null base, so the Biomes catalogue must be seeded first and the biome must have a base for that resource.");
+        }
+
         string[] unknownExperienceTypes = [.. plan
             .SelectMany(item => item.Dto.ExperienceTypeCodes)
             .Where(code => !lookups.ExperienceTypes.ContainsKey(code))
@@ -408,6 +448,12 @@ internal class UpsertTechnologiesHandler(
             .SelectMany(item => item.Dto.ExperienceTypeCodes)
             .Distinct()];
 
+        BiomeType[] grantedBiomeTypes = [.. plan
+            .SelectMany(item => item.Dto.SustenanceModifierGrants)
+            .Where(grant => grant.BiomeTypeId is not null)
+            .Select(grant => grant.BiomeTypeId!.Value)
+            .Distinct()];
+
         return new ReferenceLookups(
             Assets: assetCodes.Length == 0
                 ? []
@@ -439,7 +485,59 @@ internal class UpsertTechnologiesHandler(
                 ? []
                 : await context.ExperienceTypes
                     .Where(experienceType => experienceTypeCodes.Contains(experienceType.Code))
-                    .ToDictionaryAsync(experienceType => experienceType.Code, experienceType => experienceType.Id, cancellationToken));
+                    .ToDictionaryAsync(experienceType => experienceType.Code, experienceType => experienceType.Id, cancellationToken),
+            // Which (biome, resource) pairs actually have a base, so a grant against a null one can be rejected rather than stored as a permanent no-op. A biome missing from
+            // the catalogue contributes no pairs, which is the same answer: the grant cannot work.
+            SustenanceBases: grantedBiomeTypes.Length == 0
+                ? []
+                : [.. (await context.CampaignBiomes
+                        .Where(biome => grantedBiomeTypes.Contains(biome.BiomeTypeId))
+                        .Select(biome => new
+                        {
+                            biome.BiomeTypeId,
+                            biome.BaseForageValue,
+                            biome.BaseHuntValue,
+                            biome.BaseFishValue,
+                            biome.BaseFodderValue
+                        })
+                        .ToListAsync(cancellationToken))
+                    .SelectMany(biome => BasePairsFor(
+                        biome.BiomeTypeId,
+                        biome.BaseForageValue,
+                        biome.BaseHuntValue,
+                        biome.BaseFishValue,
+                        biome.BaseFodderValue))]);
+    }
+
+    /// <summary>
+    /// The (biome, resource) pairs one biome has a base value for.
+    /// </summary>
+    private static IEnumerable<(BiomeType Biome, SustenanceResource Resource)> BasePairsFor(
+        BiomeType biomeType,
+        long? forage,
+        long? hunt,
+        long? fish,
+        long? fodder)
+    {
+        if (forage is not null)
+        {
+            yield return (biomeType, SustenanceResource.Forage);
+        }
+
+        if (hunt is not null)
+        {
+            yield return (biomeType, SustenanceResource.Hunt);
+        }
+
+        if (fish is not null)
+        {
+            yield return (biomeType, SustenanceResource.Fish);
+        }
+
+        if (fodder is not null)
+        {
+            yield return (biomeType, SustenanceResource.Fodder);
+        }
     }
 
     private static IEnumerable<string> GrantCodesFor(TechnologyPlan[] plan, TechnologyGrantTargetType targetType)
@@ -629,6 +727,60 @@ internal class UpsertTechnologiesHandler(
         }
     }
 
+    /// <summary>
+    /// Replaces each requested Technology's sustenance modifier grants, scaling the whole numbers the request carries.
+    /// </summary>
+    /// <remarks>
+    /// Keyed on (resource, biome), which is the unique index minus the Technology, so a re-priced grant is updated in place rather than deleted and reinserted.
+    /// </remarks>
+    private async Task SyncSustenanceModifierGrantsAsync(
+        TechnologyPlan[] plan,
+        Dictionary<string, Technology> technologiesByCode,
+        int[] touchedTechnologyIds,
+        CancellationToken cancellationToken)
+    {
+        List<TechnologySustenanceModifierGrant> stored = touchedTechnologyIds.Length == 0
+            ? []
+            : await context.TechnologySustenanceModifierGrants
+                .Where(grant => touchedTechnologyIds.Contains(grant.TechnologyId))
+                .ToListAsync(cancellationToken);
+
+        foreach (TechnologyPlan item in plan)
+        {
+            Technology technology = technologiesByCode[item.Dto.Code];
+
+            Dictionary<(SustenanceResource Resource, BiomeType? BiomeTypeId), (long FlatValue, long PercentValue)> desired = item.Dto.SustenanceModifierGrants
+                .ToDictionary(
+                    grant => (grant.Resource, grant.BiomeTypeId),
+                    grant => (ScaledAmount.FromWhole(grant.FlatValue).RawValue, ScaledPercent.FromWholePercent(grant.PercentValue).RawValue));
+
+            List<TechnologySustenanceModifierGrant> current = [.. stored.Where(grant => grant.TechnologyId == technology.Id && technology.Id != 0)];
+
+            context.TechnologySustenanceModifierGrants.RemoveRange(current.Where(grant => !desired.ContainsKey((grant.Resource, grant.BiomeTypeId))));
+
+            foreach (((SustenanceResource resource, BiomeType? biomeTypeId), (long flatValue, long percentValue)) in desired)
+            {
+                TechnologySustenanceModifierGrant? existing = current.FirstOrDefault(grant => grant.Resource == resource && grant.BiomeTypeId == biomeTypeId);
+
+                if (existing is null)
+                {
+                    technology.SustenanceModifierGrants.Add(new TechnologySustenanceModifierGrant
+                    {
+                        Resource = resource,
+                        BiomeTypeId = biomeTypeId,
+                        FlatValue = flatValue,
+                        PercentValue = percentValue
+                    });
+                }
+                else
+                {
+                    existing.FlatValue = flatValue;
+                    existing.PercentValue = percentValue;
+                }
+            }
+        }
+    }
+
     private async Task SyncExperienceTypesAsync(
         TechnologyPlan[] plan,
         Dictionary<string, Technology> technologiesByCode,
@@ -736,8 +888,17 @@ internal class UpsertTechnologiesHandler(
         Dictionary<string, int> UnitComponents,
         Dictionary<string, int> UnitTemplates,
         Dictionary<string, int> MapResourceTypes,
-        Dictionary<string, int> ExperienceTypes)
+        Dictionary<string, int> ExperienceTypes,
+        HashSet<(BiomeType Biome, SustenanceResource Resource)> SustenanceBases)
     {
+        /// <summary>
+        /// Whether a biome has a base value for a resource, which is the only thing that makes a modifier grant against it capable of doing anything.
+        /// </summary>
+        public bool HasSustenanceBase(BiomeType biome, SustenanceResource resource)
+        {
+            return SustenanceBases.Contains((biome, resource));
+        }
+
         /// <summary>
         /// Resolves a grant target's code against the catalogue its type names, or null when it does not resolve.
         /// </summary>

@@ -10,7 +10,7 @@ namespace AscendantEmpire.BackendContracts.Technologies;
 /// Matched on <see cref="Code"/>, so a Technology whose DisplayName changes but whose code does not is renamed rather than duplicated.
 /// </para>
 /// <para>
-/// The four child collections are <b>replaced wholesale</b>, not merged: whatever is supplied becomes the Technology's complete set, and an empty collection
+/// The five child collections are <b>replaced wholesale</b>, not merged: whatever is supplied becomes the Technology's complete set, and an empty collection
 /// clears it. Merging would make it impossible to remove a prerequisite or a grant through the same path that added it.
 /// </para>
 /// </remarks>
@@ -98,6 +98,15 @@ public record UpsertTechnologyDto
     /// What discovering it unlocks or retires.
     /// </summary>
     public IReadOnlyCollection<UpsertTechnologyGrantDto> Grants { get; init; } = [];
+
+    /// <summary>
+    /// The sustenance modifiers discovering it grants.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="Grants"/> because an unlock names a target while a modifier carries parameters - see
+    /// <see cref="UpsertTechnologySustenanceModifierGrantDto"/>.
+    /// </remarks>
+    public IReadOnlyCollection<UpsertTechnologySustenanceModifierGrantDto> SustenanceModifierGrants { get; init; } = [];
 
     /// <summary>
     /// The codes of the experience types that feed its experience bucket.

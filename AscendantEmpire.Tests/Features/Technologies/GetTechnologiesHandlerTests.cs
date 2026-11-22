@@ -6,7 +6,9 @@ using AscendantEmpire.BackendContracts.Technologies;
 using AscendantEmpire.BackendContracts.Technologies.GetExperienceTypes;
 using AscendantEmpire.BackendContracts.Technologies.GetTechnologies;
 using AscendantEmpire.Domain.Entities.Assets;
+using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Assets;
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Technologies;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -259,6 +261,30 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
         });
     }
 
+    [Test, Description("A sustenance modifier grant comes back with the raw stored values, matching how the biome read serves its bases.")]
+    public async Task ShouldReturnModifierGrantsWhenTechnologyHasThem()
+    {
+        await AddAridBiomeAsync();
+
+        await UpsertTechnologiesAsync(
+        [
+            Technology("Stone.BiomeSkill.Arid", "Biome Skill - Arid") with
+            {
+                SustenanceModifierGrants = [ModifierGrant(SustenanceResource.Hunt, BiomeType.Arid, percentValue: 20)]
+            }
+        ]);
+
+        CatalogueSustenanceModifierGrant grant = (await GetAsync()).Single().SustenanceModifierGrants.Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(grant.Resource, Is.EqualTo(SustenanceResource.Hunt));
+            Assert.That(grant.BiomeTypeId, Is.EqualTo(BiomeType.Arid));
+            Assert.That(grant.FlatValue, Is.Zero);
+            Assert.That(grant.PercentValue, Is.EqualTo(200), "20% is stored scaled, and the read does not unscale it");
+        });
+    }
+
     [Test, Description("Empty child collections come back empty rather than null, so a client can iterate without a null check.")]
     public async Task ShouldReturnEmptyChildCollectionsRatherThanNull()
     {
@@ -271,6 +297,7 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
             Assert.That(technology.AcquisitionCosts, Is.Empty);
             Assert.That(technology.Prerequisites, Is.Empty);
             Assert.That(technology.Grants, Is.Empty);
+            Assert.That(technology.SustenanceModifierGrants, Is.Empty);
             Assert.That(technology.ExperienceSources, Is.Empty);
         });
     }
@@ -312,7 +339,7 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
         });
     }
 
-    // --- Helpers ---------------------------------------------------------------------
+    #region Helpers
 
     private static UpsertTechnologyDto Technology(string code, string displayName)
     {
@@ -323,6 +350,41 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
             Era = TechnologyEra.Stone,
             DirectedRequired = 100
         };
+    }
+
+    private static UpsertTechnologySustenanceModifierGrantDto ModifierGrant(
+        SustenanceResource resource,
+        BiomeType? biome,
+        int flatValue = 0,
+        int percentValue = 0)
+    {
+        return new UpsertTechnologySustenanceModifierGrantDto
+        {
+            Resource = resource,
+            BiomeTypeId = biome,
+            FlatValue = flatValue,
+            PercentValue = percentValue
+        };
+    }
+
+    /// <summary>
+    /// Seeds Arid with Forage and Hunt bases, which a modifier grant naming that biome and resource needs to pass the upsert's validation.
+    /// </summary>
+    private async Task AddAridBiomeAsync()
+    {
+        _context.CampaignBiomes.Add(new CampaignBiome
+        {
+            BiomeTypeId = BiomeType.Arid,
+            Name = "Arid",
+            MovementCost = 1m,
+            IsTraversable = true,
+            MapEditorHtmlColor = "#fcfda4",
+            RegenerationPercent = 0.15m,
+            BaseForageValue = 30_000,
+            BaseHuntValue = 30_000
+        });
+
+        await _context.SaveChangesAsync();
     }
 
     private async Task<IReadOnlyCollection<CatalogueTechnology>> GetAsync()
@@ -394,4 +456,6 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
 
         Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
     }
+
+    #endregion
 }

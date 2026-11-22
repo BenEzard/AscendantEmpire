@@ -49,5 +49,7 @@ public interface ICatalogueTechnology
 
     IReadOnlyCollection<ICatalogueGrant> Grants { get; }
 
+    IReadOnlyCollection<ICatalogueSustenanceModifierGrant> SustenanceModifierGrants { get; }
+
     IReadOnlyCollection<ICatalogueExperienceSource> ExperienceSources { get; }
 }
