@@ -227,6 +227,7 @@ public static class ApplicationStartup
 
         services.AddScoped<IPlayerTechnologyAvailabilityService, PlayerTechnologyAvailabilityService>();
         services.AddScoped<IPlayerTechnologySustenanceModifierService, PlayerTechnologySustenanceModifierService>();
+        services.AddScoped<IPlayerTechnologyExtractionEfficiencyService, PlayerTechnologyExtractionEfficiencyService>();
 
         return services;
     }

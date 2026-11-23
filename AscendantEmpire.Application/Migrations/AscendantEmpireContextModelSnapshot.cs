@@ -1233,6 +1233,52 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("PlayerCampaignMap", "game");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerExtractionEfficiencyModifier", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AssetId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("FlatValue")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("PercentValue")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SourceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SourceType")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetId");
+
+                    b.HasIndex("GameId")
+                        .HasDatabaseName("IX_PlayerExtractionEfficiencyModifier_GameId");
+
+                    b.HasIndex("PlayerId", "SourceType", "SourceId", "AssetId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PlayerExtractionEfficiencyModifier_Player_Source_Asset");
+
+                    b.ToTable("PlayerExtractionEfficiencyModifier", "game", t =>
+                        {
+                            t.HasCheckConstraint("CK_PlayerExtractionEfficiencyModifier_HasValue", "[FlatValue] <> 0 OR [PercentValue] <> 0");
+                        });
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerKnownForce", b =>
                 {
                     b.Property<int>("Id")
@@ -5379,6 +5425,30 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Geography");
 
                     b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerExtractionEfficiencyModifier", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.Asset", null)
+                        .WithMany()
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerExtractionEfficiencyModifier_Asset_AssetId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", null)
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerExtractionEfficiencyModifier_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerExtractionEfficiencyModifier_Player_PlayerId");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerKnownForce", b =>

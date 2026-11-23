@@ -222,6 +222,43 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
         }
     }
 
+    [Test, Description("Players' extraction efficiency modifiers go with their game, and before the players they name, while the Asset catalogue they also name survives.")]
+    public async Task ShouldRemoveTheGamesPlayerExtractionEfficiencyModifiersWhenItIsDeletedAsync()
+    {
+        int gameId = await SetupGameAsync("Doomed");
+
+        await using (AscendantEmpireContext seed = await DbFactory.CreateDbContextAsync())
+        {
+            int playerId = await seed.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).Select(p => p.Id).FirstAsync();
+            int assetId = await seed.Assets.OrderBy(a => a.Id).Select(a => a.Id).FirstAsync();
+
+            seed.PlayerExtractionEfficiencyModifiers.Add(new PlayerExtractionEfficiencyModifier
+            {
+                GameId = gameId,
+                PlayerId = playerId,
+                SourceType = Domain.Enums.Modifiers.ModifierSourceType.Technology,
+                SourceId = 1,
+                AssetId = assetId,
+                FlatValue = 950
+            });
+
+            await seed.SaveChangesAsync();
+        }
+
+        int assetsBefore = await CountAsync(c => c.Assets.CountAsync());
+
+        Processing job = await ExecuteDeleteAsync(gameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Complete), job.ErrorMessage);
+            Assert.That(await context.PlayerExtractionEfficiencyModifiers.AnyAsync(m => m.GameId == gameId), Is.False);
+            Assert.That(await context.Assets.CountAsync(), Is.EqualTo(assetsBefore), "Assets are catalogue data, not the game's.");
+        }
+    }
+
     [Test, Description("Asset banks, their balances and the players' reserve policies go with their game, and before the Units and Players they name, while the Asset catalogue survives.")]
     public async Task ShouldRemoveTheGamesAssetBanksWhenItIsDeletedAsync()
     {

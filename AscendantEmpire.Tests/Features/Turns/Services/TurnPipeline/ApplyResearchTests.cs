@@ -53,6 +53,7 @@ internal class ApplyResearchTests : InMemoryTestBase
             DbFactory,
             new PlayerTechnologyAvailabilityService(NullLogger<PlayerTechnologyAvailabilityService>.Instance),
             new PlayerTechnologySustenanceModifierService(NullLogger<PlayerTechnologySustenanceModifierService>.Instance),
+            new PlayerTechnologyExtractionEfficiencyService(NullLogger<PlayerTechnologyExtractionEfficiencyService>.Instance),
             NullLogger<ApplyResearch>.Instance);
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
@@ -220,6 +221,40 @@ internal class ApplyResearchTests : InMemoryTestBase
             Assert.That(modifiers[0].Resource, Is.EqualTo(SustenanceResource.Hunt));
             Assert.That(modifiers[0].BiomeTypeId, Is.EqualTo(BiomeType.Arid));
             Assert.That(modifiers[0].PercentValue, Is.EqualTo(ScaledPercent.FromWholePercent(20).RawValue));
+        }
+    }
+
+    [Test, Description("Discovering a technology grants its extraction efficiency modifiers in the same unit of work, so the next harvest already sees them.")]
+    public async Task ShouldGrantExtractionEfficiencyModifiersOnDiscoveryAsync()
+    {
+        const int rockAssetId = 501;
+
+        await using (AscendantEmpireContext seed = await DbFactory.CreateDbContextAsync())
+        {
+            seed.TechnologyExtractionEfficiencyGrants.Add(new TechnologyExtractionEfficiencyGrant
+            {
+                TechnologyId = _PROJECT_ID,
+                AssetId = rockAssetId,
+                FlatValue = ScaledPercent.FromWholePercent(95).RawValue
+            });
+
+            await seed.SaveChangesAsync();
+        }
+
+        await AddProjectAsync(directedRequired: 100);
+        await AddResearchStateAsync(unspentDirectedPoints: 100, currentTechnologyId: _PROJECT_ID);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        PlayerExtractionEfficiencyModifier modifier = await context.PlayerExtractionEfficiencyModifiers.AsNoTracking().SingleAsync(row => row.PlayerId == _PLAYER_ID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(modifier.SourceId, Is.EqualTo(_PROJECT_ID));
+            Assert.That(modifier.AssetId, Is.EqualTo(rockAssetId));
+            Assert.That(modifier.FlatValue, Is.EqualTo(950));
         }
     }
 

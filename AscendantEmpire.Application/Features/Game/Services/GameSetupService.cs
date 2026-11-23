@@ -42,6 +42,7 @@ internal class GameSetupService(
     IEnumerable<ITechnologyRequirementGenerator> technologyRequirementGenerators,
     IPlayerTechnologyAvailabilityService technologyAvailabilityService,
     IPlayerTechnologySustenanceModifierService sustenanceModifierService,
+    IPlayerTechnologyExtractionEfficiencyService extractionEfficiencyService,
     IOptions<GameSettings> gameSettings,
     IMapResourceInstantiationService mapResourceInstantiationService,
     IPlayerMapResourceDiscoveryService playerMapResourceDiscoveryService
@@ -607,20 +608,22 @@ internal class GameSetupService(
         // A starting Technology is Discovered from setup onwards, so its sustenance modifiers have to exist before the first Turn is taken rather than
         // waiting for a discovery that already happened.
         int modifiers = await sustenanceModifierService.ReconcileGameAsync(context, game.Id, cancellationToken);
+        int efficiencies = await extractionEfficiencyService.ReconcileGameAsync(context, game.Id, cancellationToken);
 
         await context.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
             "Seeded {RowCount} player technology row(s) for {PlayerCount} player(s) in game {GameId} using {Customisation} customisation, "
-            + "granting {StarterCount} starting technolog(ies) each; {ReconciledCount} row(s) became available and {ModifierCount} sustenance "
-            + "modifier(s) were granted.",
+            + "granting {StarterCount} starting technolog(ies) each; {ReconciledCount} row(s) became available, {ModifierCount} sustenance "
+            + "modifier(s) and {EfficiencyCount} extraction efficiency modifier(s) were granted.",
             rows.Count,
             addedPlayers.Count,
             game.Id,
             configuration.TechnologyCustomisation,
             starterIds.Count,
             reconciled,
-            modifiers);
+            modifiers,
+            efficiencies);
 
         return ServiceResultBase.Succeed();
     }

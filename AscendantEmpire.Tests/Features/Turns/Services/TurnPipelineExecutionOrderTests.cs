@@ -79,6 +79,7 @@ public class TurnPipelineExecutionOrderTests
             Substitute.For<IDbContextFactory<AscendantEmpireContext>>(),
             Substitute.For<IPlayerTechnologyAvailabilityService>(),
             Substitute.For<IPlayerTechnologySustenanceModifierService>(),
+            Substitute.For<IPlayerTechnologyExtractionEfficiencyService>(),
             NullLogger<ApplyResearch>.Instance),
         new RaiseSightingReports(
             Substitute.For<IForceSightingFoldService>(),

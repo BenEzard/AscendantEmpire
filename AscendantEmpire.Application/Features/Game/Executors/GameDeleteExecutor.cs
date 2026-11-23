@@ -87,6 +87,7 @@ internal sealed class GameDeleteExecutor(
         "[military].[PlayerOrganisationStructure]",
         "[military].[PlayerOfficerRank]",
         "[game].[PlayerSustenanceModifier]",
+        "[game].[PlayerExtractionEfficiencyModifier]",
         "[game].[PlayerKnownMapResource]",
         "[game].[PlayerMapResourceSwitch]",
         "[game].[PlayerMapResourceModifier]",
@@ -405,6 +406,11 @@ internal sealed class GameDeleteExecutor(
             // Per-player sustenance modifiers name the players, so they go before them. The biomes they also name are catalogue data and survive. They carry their own GameId, so need no
             // scoping through the players.
             ("player sustenance modifiers", () => purge.PlayerSustenanceModifiers
+                .Where(m => m.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            // The same shape as the sustenance modifiers; the Assets they name are catalogue data and survive.
+            ("player extraction efficiency modifiers", () => purge.PlayerExtractionEfficiencyModifiers
                 .Where(m => m.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 

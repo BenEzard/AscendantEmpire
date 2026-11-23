@@ -30,6 +30,7 @@ internal class ApplyResearch(
     IDbContextFactory<AscendantEmpireContext> dbFactory,
     IPlayerTechnologyAvailabilityService technologyAvailabilityService,
     IPlayerTechnologySustenanceModifierService sustenanceModifierService,
+    IPlayerTechnologyExtractionEfficiencyService extractionEfficiencyService,
     ILogger<ApplyResearch> logger) : IEndCampaignTurnProcess
 {
     public string ItemName => "Apply Research";
@@ -48,7 +49,7 @@ internal class ApplyResearch(
         //       finished" notification, which does not exist; until then the Player is prompted by ResearchSelectionCheck instead.
         //
         // TODO: TechnologyGrant rows are not applied on discovery, so discovering a Technology unlocks nothing it grants. Most grant targets do not exist in
-        //       their catalogues yet. Sustenance modifier grants are applied, by IPlayerTechnologySustenanceModifierService.
+        //       their catalogues yet. Sustenance modifier and extraction efficiency grants are applied, by their own reconcilers.
 
         if (context.PlayerId is null)
         {
@@ -211,16 +212,18 @@ internal class ApplyResearch(
         // Likewise the one owner of which sustenance modifiers the Player holds for what they have discovered. Convergent, so what it writes here is the
         // same whether this is the Player's first discovery or their fiftieth.
         int modifierCount = await sustenanceModifierService.ReconcileAsync(db, context.GameId, playerId, CancellationToken.None);
+        int efficiencyCount = await extractionEfficiencyService.ReconcileAsync(db, context.GameId, playerId, CancellationToken.None);
 
         logger.LogInformation(
             "Player Id {PlayerId} in Game Id {GameId} discovered Technology Id {TechnologyId} by directed research in Round {RoundNumber}; "
-            + "{ReconciledCount} row(s) changed status and {ModifierCount} sustenance modifier(s) were reconciled.",
+            + "{ReconciledCount} row(s) changed status, {ModifierCount} sustenance modifier(s) and {EfficiencyCount} extraction efficiency modifier(s) were reconciled.",
             playerId,
             context.GameId,
             currentTechnologyId,
             context.CurrentRoundNumber,
             reconciledCount,
-            modifierCount);
+            modifierCount,
+            efficiencyCount);
 
         return spentPoints;
     }

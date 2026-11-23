@@ -121,6 +121,7 @@ public class GameSqlServerTestBase : SqlServerTestBase
             requirementGenerators,
             new PlayerTechnologyAvailabilityService(NullLogger<PlayerTechnologyAvailabilityService>.Instance),
             new PlayerTechnologySustenanceModifierService(NullLogger<PlayerTechnologySustenanceModifierService>.Instance),
+            new PlayerTechnologyExtractionEfficiencyService(NullLogger<PlayerTechnologyExtractionEfficiencyService>.Instance),
             TestGameSettings.Create(),
             mapResourceInstantiation ?? new MapResourceInstantiationService(NullLogger<MapResourceInstantiationService>.Instance, DbFactory),
             playerMapResourceDiscovery ?? new PlayerMapResourceDiscoveryService());

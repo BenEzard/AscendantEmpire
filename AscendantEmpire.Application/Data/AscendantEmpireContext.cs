@@ -166,6 +166,11 @@ public class AscendantEmpireContext : DbContext
     public DbSet<PlayerSustenanceModifier> PlayerSustenanceModifiers { get; set; }
 
     /// <summary>
+    /// The modifiers each Player holds to their extraction efficiency, one row per source and Asset. Summed by <c>IPlayerExtractionEfficiencyReader</c>.
+    /// </summary>
+    public DbSet<PlayerExtractionEfficiencyModifier> PlayerExtractionEfficiencyModifiers { get; set; }
+
+    /// <summary>
     /// The Player-neutral Forage, Hunt, Fish and Fodder taken from each campaign map tile that has been fed on, and the last Round it was fed on. Written by the end-of-turn
     /// <c>Gathering</c> process.
     /// </summary>
@@ -1450,6 +1455,45 @@ public class AscendantEmpireContext : DbContext
             // The game delete's filter.
             entity.HasIndex(e => e.GameId)
                 .HasDatabaseName("IX_PlayerSustenanceModifier_GameId");
+        });
+
+        // --- PlayerExtractionEfficiencyModifier ----------------------------------------
+        // One modifier to a Player's extraction efficiency for one Asset. The efficiency is derived from these and the extraction path's starting figure, never stored.
+        modelBuilder.Entity<PlayerExtractionEfficiencyModifier>(entity =>
+        {
+            entity.ToTable("PlayerExtractionEfficiencyModifier", schema, table => table.HasCheckConstraint(
+                "CK_PlayerExtractionEfficiencyModifier_HasValue",
+                "[FlatValue] <> 0 OR [PercentValue] <> 0"));
+
+            entity.HasKey(e => e.Id);
+
+            // No navigations, and every relationship NoAction, for the same reasons as PlayerSustenanceModifier.
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerExtractionEfficiencyModifier_GameIndex_GameId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerExtractionEfficiencyModifier_Player_PlayerId");
+
+            entity.HasOne<Asset>()
+                .WithMany()
+                .HasForeignKey(e => e.AssetId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerExtractionEfficiencyModifier_Asset_AssetId");
+
+            // The Player comes first because it is also the reader's lookup: every one of a Player's modifiers at once.
+            entity.HasIndex(e => new { e.PlayerId, e.SourceType, e.SourceId, e.AssetId })
+                .IsUnique()
+                .HasDatabaseName("UX_PlayerExtractionEfficiencyModifier_Player_Source_Asset");
+
+            // The game delete's filter.
+            entity.HasIndex(e => e.GameId)
+                .HasDatabaseName("IX_PlayerExtractionEfficiencyModifier_GameId");
         });
 
         // --- CampaignMapDepletion ------------------------------------------------------
