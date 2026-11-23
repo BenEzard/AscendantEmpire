@@ -156,4 +156,10 @@ describe("CreateSettlementDialog", () => {
 
     expect(screen.queryByText(/already a settlement/)).not.toBeInTheDocument();
   });
+
+  it("puts the caret in the name rather than on the close button", () => {
+    renderDialog();
+
+    expect(screen.getByRole("textbox")).toHaveFocus();
+  });
 });

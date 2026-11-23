@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Alert, Button, Modal, errorClass } from "@/components/ui";
 import type { FoundableSettlementTier, SettleForceResult } from "@/features/game/api/settleForceApi";
 import { useSettleForceMutation } from "@/features/game/hooks/useSettleForce";
+import { useFocusOnOpen } from "@/hooks/useFocusOnOpen";
 
 /**
  * The longest name the server will store, mirroring `Settlement.NAME_MAX_LENGTH`.
@@ -47,6 +48,7 @@ export default function CreateSettlementDialog({
 }: CreateSettlementDialogProps) {
   const [name, setName] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const nameInputRef = useFocusOnOpen<HTMLInputElement>(show);
 
   // Cleared on open rather than on close, so a refusal stays readable while the dialog is shutting and a reopened dialog never
   // starts with the last attempt's name or error still in it.
@@ -112,11 +114,11 @@ export default function CreateSettlementDialog({
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Name the {tierLabel}</span>
           <input
+            ref={nameInputRef}
             className={errorClass(errorMessage != null)}
             value={name}
             maxLength={SETTLEMENT_NAME_MAX_LENGTH}
             placeholder={`What will this ${tierLabel} be called?`}
-            autoFocus
             // Enter submits, since the form is one field and reaching for the button is the slower path.
             onKeyDown={(event) => {
               if (event.key === "Enter") {

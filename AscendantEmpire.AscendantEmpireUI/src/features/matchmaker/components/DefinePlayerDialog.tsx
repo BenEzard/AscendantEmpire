@@ -17,8 +17,10 @@ import {
   type UsedImage,
 } from "@/components/ui";
 import { ApiError } from "@/api/http";
+import { useFocusOnOpen } from "@/hooks/useFocusOnOpen";
 import { useValidatedCommit } from "@/hooks/useValidatedCommit";
 import { getPlayerDefinition, updatePlayerDefinition } from "../api/matchMakingApi";
+import { PLAYER_AUTO_FILL_PRESETS, resolvePlayerAutoFillPreset } from "../types/PlayerAutoFillPresets";
 import type { PlayerDefinition, PlayerDefinitionConflict } from "../types/PlayerDefinition";
 import { RULER_GENDERS, titlesFor, type RulerGender } from "../types/RulerGender";
 import { isRulerPortraitOffered, rulerPortraitsFor } from "../types/RulerPortrait";
@@ -48,6 +50,9 @@ const LOCKED_MESSAGE =
  * the player's ruler is a woman.
  */
 const DEFAULT_RULER_GENDER: RulerGender = "Male";
+
+/** Shows the Auto-Fill button, a test convenience whose presets must never reach players. */
+const SHOW_AUTO_FILL = import.meta.env.DEV;
 
 /** The dialog's two pages. */
 type DefinePlayerSection = "ruler" | "faction";
@@ -200,6 +205,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
   // A clash on any of the unique values is only knowable at save time, so they are held apart from the pure field
   // validation. Keyed by field because a single save can come back with several at once.
   const [conflicts, setConflicts] = useState<FieldErrors>({});
+  const [nextAutoFillIndex, setNextAutoFillIndex] = useState(0);
 
   const definitionQuery = useQuery<PlayerDefinition, Error>({
     queryKey: playerDefinitionQueryKey(gameId),
@@ -211,6 +217,9 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
   });
 
   const definition = definitionQuery.data;
+
+  // The field is not rendered until the definition loads; on a locked game it is disabled, and the focus is left to Modal.
+  const rulerNameInputRef = useFocusOnOpen<HTMLInputElement>(open, activeSection === "ruler" && !definitionQuery.isLoading);
 
   // Re-seed whenever the dialog opens (or the fetched definition lands), so a previous session never leaks in.
   useEffect(() => {
@@ -253,6 +262,19 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
       language: neverDefined ? "" : definition.language,
     });
   }, [open, definition]);
+
+  // Kept apart from the re-seed above, which also runs when a refetch lands and would otherwise restart the cycle mid-opening.
+  useEffect(() => {
+    if (open) {
+      setNextAutoFillIndex(0);
+    }
+  }, [open]);
+
+  const applyAutoFill = () => {
+    setDraft(resolvePlayerAutoFillPreset(PLAYER_AUTO_FILL_PRESETS[nextAutoFillIndex]));
+    setConflicts({});
+    setNextAutoFillIndex((nextAutoFillIndex + 1) % PLAYER_AUTO_FILL_PRESETS.length);
+  };
 
   // Editing a field clears the clash reported against it: the message was about the value that has just changed.
   const setField = <K extends keyof Draft>(key: K, value: Draft[K]) => {
@@ -384,6 +406,12 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
       }
       footer={
         <>
+          {SHOW_AUTO_FILL && (
+            // mr-auto pushes it to the left of the right-aligned footer.
+            <Button variant="outline-secondary" className="mr-auto" onClick={applyAutoFill} disabled={isLocked || saveMutation.isPending}>
+              Auto-Fill
+            </Button>
+          )}
           <Button variant="secondary" onClick={onCancel} disabled={saveMutation.isPending}>
             Cancel / Close
           </Button>
@@ -408,6 +436,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
             <>
               <FieldRow label="Ruler Name" error={shownErrors.rulerName}>
                 <input
+                  ref={rulerNameInputRef}
                   className={errorClass(!!shownErrors.rulerName)}
                   value={draft.rulerName}
                   aria-label="Ruler Name"

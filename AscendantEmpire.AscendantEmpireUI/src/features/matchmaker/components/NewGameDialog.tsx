@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Alert, Button, FieldRow, PagedDialog, WholeNumberSlider, errorClass } from "@/components/ui";
 import { http } from "@/api/http";
+import { useFocusOnOpen } from "@/hooks/useFocusOnOpen";
 import { useValidatedCommit } from "@/hooks/useValidatedCommit";
 import SelectCampaignMap from "@/features/mapgallery/components/SelectCampaignMap";
 import { useNewGameSettingsQuery } from "../hooks/useNewGameSettings";
@@ -74,6 +75,8 @@ export default function NewGameDialog({ show, onClose, onCreateSuccess }: NewGam
   const [mapFilter, setMapFilter] = useState("");
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // A reopen can start on the Map page until the reset below lands, so the focus waits for General to be visible.
+  const gameNameInputRef = useFocusOnOpen<HTMLInputElement>(show, activeSection === "general");
 
   useEffect(() => {
     if (!show) {
@@ -195,6 +198,7 @@ export default function NewGameDialog({ show, onClose, onCreateSuccess }: NewGam
 
               <FieldRow label="Game Name" error={shownErrors.gameName}>
                 <input
+                  ref={gameNameInputRef}
                   className={errorClass(!!shownErrors.gameName)}
                   value={gameName}
                   aria-label="Game Name"

@@ -242,3 +242,11 @@ describe("the field descriptions", () => {
     expect(screen.queryByText("Leave blank for a random seed")).toBeNull();
   });
 });
+
+describe("the opening focus", () => {
+  it("puts the caret in the game name rather than on the close button", () => {
+    renderDialog();
+
+    expect(gameNameInput()).toHaveFocus();
+  });
+});

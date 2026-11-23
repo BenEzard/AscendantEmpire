@@ -796,3 +796,63 @@ describe("an already-defined slot", () => {
     expect(portraitTrigger().querySelector("img")).toHaveAttribute("src", "/portraits/17_blonde_queen.png");
   });
 });
+
+describe("the Auto-Fill button", () => {
+  const autoFillButton = () => screen.getByRole("button", { name: "Auto-Fill" });
+
+  it("fills every field from the next preset on each press, wrapping back to the first after the last", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await waitFor(() => expect(rulerNameInput()).toBeInTheDocument());
+
+    const rulerNames: string[] = [];
+
+    for (let press = 0; press < 4; press++) {
+      await user.click(autoFillButton());
+      rulerNames.push((rulerNameInput() as HTMLInputElement).value);
+    }
+
+    expect(rulerNames).toEqual(["Ben", "Geoff", "Jen", "Ben"]);
+    expect(rulerTitleInput()).toHaveValue("Supreme Commander");
+    expect(screen.getByRole("radio", { name: "Male" })).toBeChecked();
+    expect(portraitTrigger().querySelector("img")).toHaveAttribute("src", "/portraits/01_western_king.png");
+    expect(factionNameInput()).toHaveValue("Roman Empire");
+    expect(peopleNameInput()).toHaveValue("Romans");
+    expect(demonymInput()).toHaveValue("Roman");
+    expect(languageInput()).toHaveValue("Italian");
+  });
+
+  it("saves what it filled in", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updatePlayerDefinition).mockResolvedValue(undefined as never);
+    renderDialog();
+    await waitFor(() => expect(rulerNameInput()).toBeInTheDocument());
+
+    await user.click(autoFillButton());
+    await user.click(saveButton());
+
+    await waitFor(() => expect(updatePlayerDefinition).toHaveBeenCalledWith(GAME_ID, expect.objectContaining({ rulerName: "Ben", factionColour: "#8200db" })));
+  });
+
+  it("is disabled on a locked game, whose identity can no longer change", async () => {
+    renderDialog(definedSlot({ isLocked: true }));
+
+    await waitFor(() => expect(rulerNameInput()).toBeDisabled());
+    expect(autoFillButton()).toBeDisabled();
+  });
+});
+
+describe("the opening focus", () => {
+  it("puts the caret in the ruler name once the slot has loaded", async () => {
+    renderDialog();
+
+    await waitFor(() => expect(rulerNameInput()).toHaveFocus());
+  });
+
+  it("leaves the ruler name alone on a locked game, where it cannot be edited", async () => {
+    renderDialog(definedSlot({ isLocked: true }));
+
+    await waitFor(() => expect(rulerNameInput()).toBeDisabled());
+    expect(rulerNameInput()).not.toHaveFocus();
+  });
+});
