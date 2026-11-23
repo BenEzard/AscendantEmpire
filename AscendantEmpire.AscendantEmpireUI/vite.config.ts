@@ -45,6 +45,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
+    // Node 25+ ships its own localStorage global, which shadows jsdom's and is unusable without a backing file.
+    execArgv: ['--no-experimental-webstorage'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
