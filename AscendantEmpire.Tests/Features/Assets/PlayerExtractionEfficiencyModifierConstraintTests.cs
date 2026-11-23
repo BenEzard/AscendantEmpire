@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace AscendantEmpire.Tests.Features.Assets;
 
 /// <summary>
-/// Tests that the database enforces the two rules on <c>game.PlayerExtractionEfficiencyModifier</c>: one row per Player, source and Asset, and no row that changes
+/// Tests that the database enforces the rules on <c>game.PlayerExtractionEfficiencyModifier</c>: one row per Player, source and Asset, and no row that changes
 /// nothing.
 /// </summary>
 /// <remarks>

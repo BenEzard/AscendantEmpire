@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace AscendantEmpire.Tests.Features.Technologies;
 
 /// <summary>
-/// Tests that the database enforces the two rules on <c>technology.TechnologyExtractionEfficiencyGrant</c>: one grant per Technology and Asset, and no grant that
+/// Tests that the database enforces the rules on <c>technology.TechnologyExtractionEfficiencyGrant</c>: one grant per Technology and Asset, and no grant that
 /// changes nothing.
 /// </summary>
 /// <remarks>

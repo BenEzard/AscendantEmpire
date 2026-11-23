@@ -10,7 +10,7 @@ namespace AscendantEmpire.BackendContracts.Technologies;
 /// <c>200</c>. The handler scales both, so nothing outside it ever writes a raw value.
 /// </para>
 /// <para>
-/// At least one of the two must be non-zero, which mirrors <c>CK_TechnologyExtractionEfficiencyGrant_HasValue</c>. Either may be negative, for a Technology that
+/// At least one must be non-zero, which mirrors <c>CK_TechnologyExtractionEfficiencyGrant_HasValue</c>. Either may be negative, for a Technology that
 /// makes an Asset harder to extract. The Asset must be naturally occurring, because nothing extracts a made Asset from the land.
 /// </para>
 /// </remarks>

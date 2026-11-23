@@ -13,7 +13,7 @@ namespace AscendantEmpire.Tests.Features.Technologies;
 /// </summary>
 /// <remarks>
 /// The same dependency <c>TechnologySeedStep.DependsOn</c> declares on the Assets catalogue: <c>PrimitiveCrafting1</c>'s extraction efficiency grants name the
-/// three generic material Assets, naturally occurring as the real Asset seed has them, and the upsert rejects the batch without them.
+/// generic material Assets, naturally occurring as the real Asset seed has them, and the upsert rejects the batch without them.
 /// </remarks>
 internal static class TechnologySeedTestAssets
 {

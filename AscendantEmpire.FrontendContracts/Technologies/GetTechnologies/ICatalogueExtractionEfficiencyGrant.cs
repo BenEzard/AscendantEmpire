@@ -4,7 +4,7 @@ namespace AscendantEmpire.FrontendContracts.Technologies.GetTechnologies;
 /// One extraction efficiency modifier a technology grants when it is discovered.
 /// </summary>
 /// <remarks>
-/// The two values are raw and scaled, as the modifier tables hold them - ninety-five points read back as <c>950</c>.
+/// Both values are raw and scaled, as the modifier tables hold them - ninety-five points read back as <c>950</c>.
 /// </remarks>
 public interface ICatalogueExtractionEfficiencyGrant
 {

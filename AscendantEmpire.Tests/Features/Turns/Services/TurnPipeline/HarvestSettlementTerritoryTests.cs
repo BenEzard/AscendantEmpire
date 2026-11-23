@@ -14,6 +14,7 @@ using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Settlements;
 using AscendantEmpire.Domain.Enums.Maps;
+using AscendantEmpire.Domain.Enums.Modifiers;
 using AscendantEmpire.Domain.Enums.Settlements;
 using AscendantEmpire.Domain.Enums.Structures;
 using AscendantEmpire.Domain.Enums.Turns;
@@ -414,7 +415,7 @@ internal class HarvestSettlementTerritoryTests : InMemoryTestBase
         {
             GameId = _GAME_ID,
             PlayerId = playerId,
-            SourceType = Domain.Enums.Modifiers.ModifierSourceType.Technology,
+            SourceType = ModifierSourceType.Technology,
             SourceId = 1,
             AssetId = _assetIdsByCode[assetCode],
             FlatValue = ScaledPercent.FromWholePercent(flatPoints).RawValue

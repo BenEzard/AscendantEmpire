@@ -26,6 +26,8 @@ internal class PlayerExtractionEfficiencyReaderTests : InMemoryTestBase
 
     private readonly PlayerExtractionEfficiencyReader _reader = new();
 
+    #region Summing
+
     [Test, Description("Only the asked-for Player's rows count, so one Player's crafting technology does not lift another's harvest.")]
     public async Task ShouldSumOnlyThatPlayersRowsWhenSeveralPlayersHoldModifiers()
     {
@@ -58,6 +60,10 @@ internal class PlayerExtractionEfficiencyReaderTests : InMemoryTestBase
         Assert.That(efficiencies.GetEfficiency(_ROCK_ASSET_ID, _FIVE_PERCENT), Is.EqualTo(ScaledPercent.FromWholePercent(120)));
     }
 
+    #endregion
+
+    #region Helpers
+
     private async Task AddModifierAsync(int playerId, int sourceId, int assetId, int flatPoints)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
@@ -81,4 +87,6 @@ internal class PlayerExtractionEfficiencyReaderTests : InMemoryTestBase
 
         return await _reader.GetEfficienciesAsync(context, playerId);
     }
+
+    #endregion
 }

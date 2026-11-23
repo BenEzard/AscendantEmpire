@@ -11,6 +11,8 @@ internal class ExtractionEfficiencyCalculatorTests
 {
     private static readonly ScaledPercent _FIVE_PERCENT = ScaledPercent.FromWholePercent(5);
 
+    #region Modifiers
+
     [Test, Description("With no modifiers the efficiency is the extraction path's starting figure, which is the before-any-technology state.")]
     public void ShouldReturnStartWhenNoModifiers()
     {
@@ -45,6 +47,10 @@ internal class ExtractionEfficiencyCalculatorTests
         Assert.That(efficiency, Is.EqualTo(ScaledPercent.FromWholePercent(10)));
     }
 
+    #endregion
+
+    #region Floor
+
     [Test, Description("Penalties larger than the start floor the efficiency at zero, so a take can never go negative.")]
     public void ShouldFloorAtZeroWhenPenaltiesExceedStart()
     {
@@ -52,4 +58,6 @@ internal class ExtractionEfficiencyCalculatorTests
 
         Assert.That(efficiency, Is.EqualTo(ScaledPercent.Zero));
     }
+
+    #endregion
 }

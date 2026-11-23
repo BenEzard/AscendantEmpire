@@ -125,11 +125,11 @@ public class TechnologyController : ControllerBase
     /// Existing records (matched by Code) are updated; new records are inserted.
     /// </summary>
     /// <remarks>
-    /// Each technology's four child collections are replaced wholesale rather than merged, so an omitted collection clears it. Prerequisites may name a
+    /// Each technology's child collections are replaced wholesale rather than merged, so an omitted collection clears it. Prerequisites may name a
     /// technology defined elsewhere in the same request, which is what lets one call carry a whole tree.
     /// </remarks>
     /// <response code="204">Technologies successfully upserted</response>
-    /// <response code="400">Validation error — an unresolvable grant target or cost Asset, a prerequisite cycle, a duplicate code, or a technology requiring no research bucket</response>
+    /// <response code="400">Validation error — an unresolvable grant target or cost Asset, an efficiency grant naming an unknown or made Asset, a prerequisite cycle, a duplicate code, or a technology requiring no research bucket</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
     [HttpPut]

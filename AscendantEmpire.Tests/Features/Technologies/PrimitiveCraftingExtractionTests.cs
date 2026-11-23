@@ -47,6 +47,8 @@ internal class PrimitiveCraftingExtractionTests : InMemoryTestBase
     private int _playerId;
     private int _primitiveCraftingId;
 
+    #region Setup
+
     [SetUp]
     public async Task SeedCatalogueAndPlayerAsync()
     {
@@ -82,6 +84,10 @@ internal class PrimitiveCraftingExtractionTests : InMemoryTestBase
         _primitiveCraftingId = await context.Technologies.Where(technology => technology.Code == "PrimitiveCrafting1").Select(technology => technology.Id).SingleAsync();
     }
 
+    #endregion
+
+    #region PrimitiveCrafting1
+
     [Test, Description("Before PrimitiveCrafting1 a Settlement on Tundra takes 1 Stone of the 20 the land holds, which is the barely-gathering phase the design wants.")]
     public async Task ShouldBankOneStoneWhenPrimitiveCrafting1IsNotDiscovered()
     {
@@ -112,6 +118,10 @@ internal class PrimitiveCraftingExtractionTests : InMemoryTestBase
 
         Assert.That(take, Is.EqualTo(ScaledAmount.FromWhole(_TUNDRA_STONE)));
     }
+
+    #endregion
+
+    #region Helpers
 
     /// <summary>
     /// Reconciles the Player, reads their efficiencies, and works out what one Tundra tile with a base of 20 yields for the material.
@@ -159,4 +169,6 @@ internal class PrimitiveCraftingExtractionTests : InMemoryTestBase
 
         Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
     }
+
+    #endregion
 }

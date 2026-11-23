@@ -20,6 +20,7 @@ using AscendantEmpire.Domain.Enums.Forces;
 using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Intelligence;
 using AscendantEmpire.Domain.Enums.Maps;
+using AscendantEmpire.Domain.Enums.Modifiers;
 using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.Domain.Enums.System;
 using AscendantEmpire.Domain.Enums.Technologies;
@@ -236,7 +237,7 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             {
                 GameId = gameId,
                 PlayerId = playerId,
-                SourceType = Domain.Enums.Modifiers.ModifierSourceType.Technology,
+                SourceType = ModifierSourceType.Technology,
                 SourceId = 1,
                 AssetId = assetId,
                 FlatValue = 950
@@ -1092,7 +1093,7 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             {
                 GameId = gameId,
                 PlayerId = playerId,
-                SourceType = Domain.Enums.Modifiers.ModifierSourceType.Technology,
+                SourceType = ModifierSourceType.Technology,
                 SourceId = 1,
                 Resource = Domain.Enums.Maps.SustenanceResource.Forage,
                 BiomeTypeId = null,
@@ -1103,7 +1104,7 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             {
                 GameId = gameId,
                 PlayerId = playerId,
-                SourceType = Domain.Enums.Modifiers.ModifierSourceType.Technology,
+                SourceType = ModifierSourceType.Technology,
                 SourceId = 1,
                 Resource = Domain.Enums.Maps.SustenanceResource.Hunt,
                 BiomeTypeId = BiomeType.Grassland,
@@ -1214,7 +1215,7 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
         {
             GameId = gameId,
             PlayerId = playerId,
-            SourceType = Domain.Enums.Modifiers.ModifierSourceType.Technology,
+            SourceType = ModifierSourceType.Technology,
             SourceId = 1,
             MapResourceTypeId = catalogue.BerryTypeId,
             Target = Domain.Enums.MapResources.MapResourceModifierTarget.GrowthPercentage,
@@ -1227,7 +1228,7 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
         {
             GameId = gameId,
             PlayerId = playerId,
-            SourceType = Domain.Enums.Modifiers.ModifierSourceType.Technology,
+            SourceType = ModifierSourceType.Technology,
             SourceId = 1,
             Kind = Domain.Enums.MapResources.MapResourceSwitchKind.YieldAsset,
             MapResourceTypeId = catalogue.BerryTypeId,
