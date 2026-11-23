@@ -92,6 +92,7 @@ public static class ApplicationStartup
         services.AddScoped<IBiomeRegenerationValueReader, BiomeRegenerationValueReader>();
         services.AddScoped<ISustenanceAssetReader, SustenanceAssetReader>();
         services.AddScoped<IMaterialAssetReader, MaterialAssetReader>();
+        services.AddScoped<IPlayerExtractionEfficiencyReader, PlayerExtractionEfficiencyReader>();
         services.AddScoped<ISupplySetMembershipReader, SupplySetMembershipReader>();
         services.AddScoped<ITileFoodStockReader, TileFoodStockReader>();
         services.AddScoped<ITileFoodDisclosureReader, TileFoodDisclosureReader>();

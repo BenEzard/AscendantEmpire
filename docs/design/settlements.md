@@ -244,8 +244,6 @@ instead. The states, the transfer rules and the rebellion period are in
 
 ## Harvest
 
-> **Not built yet.** None of this section exists in code. The pieces it is built out of all do: `OwnedBySettlementId` carries the territory, `IPlayerSustenanceValueReader` and `IBiomeRegenerationValueReader` give the amounts, `CampaignMapDepletion` records what has been taken, and `IAssetBankCreditService` places stock in a bank.
-
 A settlement draws food and materials off the tiles of its own territory, and banks what it draws. This is the only thing that credits an asset bank from the land, and it is what a settlement lives on.
 
 ### When it runs
@@ -269,11 +267,11 @@ A biome's values divide in two, and the harvest treats them differently because 
 
 | | Sustenance — Forage, Hunt, Fish, Fodder | Material — Wood, Stone, Bone |
 | --- | --- | --- |
-| Player-specific | Yes, through `PlayerSustenanceModifier` | No, static for every player in every game |
+| Player-specific | Yes, through `PlayerSustenanceModifier` | The value is static for every player; how much of it a player extracts is not, through `PlayerExtractionEfficiencyModifier` |
 | Depletes | Yes, into `CampaignMapDepletion` | No, nothing is recorded |
 | Regrows | Yes, at the biome's Regeneration Percent | Nothing to regrow |
 | Rivers | Counted, per [campaign-map/food-yield.md](campaign-map/food-yield.md#rivers) | Not counted |
-| What the harvest takes | The tile's regrowth | The biome's base value |
+| What the harvest takes | The tile's regrowth | The biome's base value times the owner's extraction efficiency |
 
 #### Sustenance: the tile's regrowth, and no more
 
@@ -285,9 +283,15 @@ Per tile, per resource, the settlement takes `MIN(available to the owner, the ti
 
 **A harvest does not mark the tile as fed on.** `CampaignMapDepletion.FedOnRound` records that a *Force* was present, which is what the 10% floor of [replenishment](campaign-map/replenishment.md) turns on, and a harvest that takes only the regrowth leaves `Taken` at 0 regardless.
 
-#### Materials: the base value, every round
+#### Materials: the base value times the owner's efficiency, every round
 
-Per tile, the settlement takes the biome's `BaseWoodValue`, `BaseStoneValue` and `BaseBoneValue`, in full, every round. Nothing is recorded against the tile, nothing regrows, and no player modifier or river bonus applies, because a material value is static and is not depleted.
+Per tile, per material, the settlement takes `MIN(base value × the owner's extraction efficiency, the staffed share)` of the biome's `BaseWoodValue`, `BaseStoneValue` and `BaseBoneValue`, every round. Nothing is recorded against the tile, nothing regrows, and no yield modifier or river bonus applies, because a material value is static and is not depleted.
+
+**Efficiency is how much of what the land holds a people can get out.** Each material starts at 5% (`SettlementHarvestCalculator.STARTING_MATERIAL_EFFICIENCY`), so before any technology a Tundra tile's Stone 20 yields 1 a round. `PrimitiveCrafting1` grants +95 points to each material, lifting it to 100%. A player's efficiency is `Start + Start × ΣPercent + ΣFlat`, floored at 0, from their `PlayerExtractionEfficiencyModifier` rows; those rows are derived from `TechnologyExtractionEfficiencyGrant` and the technologies the player has discovered, and grants from several technologies sum.
+
+**Efficiency and yield modifiers are two layers.** A yield modifier — `PlayerSustenanceModifier`, `PlayerMapResourceModifier` — changes what the land holds, and so also what a Force finds there and what regrows. Efficiency changes only how much of it the gatherer takes out. A biome's values therefore stay the land's real figures, and a "better quarrying" technology is an efficiency grant rather than a change to the biome.
+
+Efficiency applies before the civilian cap, so a small settlement is limited by its hands rather than by both at once. A fractional take banks as a fraction: Arid Stone 50 at 5% is 2.5.
 
 Each maps to the generic asset of its kind, the same three the game's starting stock is denominated in:
 
@@ -297,7 +301,7 @@ Each maps to the generic asset of its kind, the same three the game's starting s
 | Stone | `ConstructionMaterials.Stone.RawRock.GenericRock` |
 | Bone | `RawMaterials.RawMaterials.Bone` |
 
-The base value is its own ceiling, so the staffed share below only ever binds on a very small settlement. A village banks its territory's whole material yield every round, indefinitely.
+The yield is its own ceiling, so the staffed share below only ever binds on a very small settlement. A village banks its territory's material yield every round, indefinitely.
 
 ### Who does the work
 
@@ -307,7 +311,7 @@ The base value is its own ceiling, so the staffed share below only ever binds on
 
 ### Details
 
-- **The rate per civilian is one unit** of a resource, per tile, per round. On any terrain worth settling the regrowth or the base value is the smaller number, so the rate is a ceiling that does not bind and is not a figure to balance the economy with. The allocation above is what will make it matter.
+- **The rate per civilian is one unit** of a resource, per tile, per round. On any terrain worth settling the regrowth or the material yield is the smaller number, so the rate is a ceiling that does not bind and is not a figure to balance the economy with. The allocation above is what will make it matter.
 - **The owner is the Structure's owner** — `StructureInstance.OwnedByPlayerId`, which is where a settlement's ownership lives and what a conquest moves. A captured settlement therefore harvests against its new owner's sustenance values from the round after it changes hands.
 - **Rounding goes against the settlement**, in thousandths, the same way the tile's own arithmetic rounds against the tile.
 - **Water in a territory harvests normally.** A tile is harvested for whatever its biome has a base value for, so an owned coastal tile gives its Fish and no rule is needed to tell land from water.
@@ -329,7 +333,8 @@ A village of 100 on nine grassland tiles — Forage 40, Hunt 70, Regeneration Pe
 | Hunt harvested | 17.5 | 157.5 |
 | Food the population needs | | 100 |
 | **Food banked** | | **147.5** |
-| Wood, Stone and Bone harvested | 40 each | 360 each |
+| Wood, Stone and Bone harvested, before `PrimitiveCrafting1` | 2 each | 18 each |
+| Wood, Stone and Bone harvested, after `PrimitiveCrafting1` | 40 each | 360 each |
 
 The same village on arid land — Forage 30, Hunt 30, Regeneration Percent 15% — harvests 9 food a tile, 81 in all, and cannot feed itself. Terrain decides where a settlement is viable, and a player can read the numbers off the tile toolbar before founding one.
 

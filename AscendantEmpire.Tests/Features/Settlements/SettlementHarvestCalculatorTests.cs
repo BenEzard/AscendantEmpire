@@ -1,5 +1,6 @@
 using AscendantEmpire.Application.Features.Settlements.Classes;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
+using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.Tests.Features.Settlements;
 
@@ -19,6 +20,10 @@ internal class SettlementHarvestCalculatorTests
     private static readonly ScaledAmount _HUNT_AVAILABLE = ScaledAmount.FromWhole(70);
 
     private static readonly ScaledAmount _HUNT_REGROWTH = ScaledAmount.FromRaw(17_500);
+
+    private static readonly ScaledPercent _FULL_EFFICIENCY = ScaledPercent.FromWholePercent(100);
+
+    private static readonly ScaledPercent _FIVE_PERCENT = ScaledPercent.FromWholePercent(5);
 
     #region Sustenance
 
@@ -84,12 +89,12 @@ internal class SettlementHarvestCalculatorTests
 
     #region Materials
 
-    [Test, Description("Pins that a material is taken at the biome's base value every Round, since nothing depletes or regrows it.")]
+    [Test, Description("Pins that a material is taken at the biome's whole base value every Round at full efficiency, since nothing depletes or regrows it.")]
     public void ShouldTakeTheWholeBaseValueWhenTheBiomeHasTheMaterial()
     {
         ScaledAmount baseValue = ScaledAmount.FromWhole(40);
 
-        ScaledAmount take = SettlementHarvestCalculator.CalculateMaterialTake(baseValue, SettlementWorkAllocation.CiviliansOnTile(_POPULATION));
+        ScaledAmount take = SettlementHarvestCalculator.CalculateMaterialTake(baseValue, _FULL_EFFICIENCY, SettlementWorkAllocation.CiviliansOnTile(_POPULATION));
 
         Assert.That(take, Is.EqualTo(baseValue));
     }
@@ -97,7 +102,7 @@ internal class SettlementHarvestCalculatorTests
     [Test, Description("Pins that the staffed share caps a material too, so a tiny settlement cannot work a rich seam as if it were large.")]
     public void ShouldCapTheMaterialAtTheStaffedShareWhenThePopulationIsSmall()
     {
-        ScaledAmount take = SettlementHarvestCalculator.CalculateMaterialTake(ScaledAmount.FromWhole(40), civilians: 10);
+        ScaledAmount take = SettlementHarvestCalculator.CalculateMaterialTake(ScaledAmount.FromWhole(40), _FULL_EFFICIENCY, civilians: 10);
 
         Assert.That(take, Is.EqualTo(ScaledAmount.FromWhole(10 * SettlementHarvestCalculator.CIVILIAN_HARVEST_RATE)));
     }
@@ -105,9 +110,48 @@ internal class SettlementHarvestCalculatorTests
     [Test, Description("Pins that a material the biome does not have is not harvested, so an absent seam banks nothing.")]
     public void ShouldTakeNothingWhenTheBiomeHasNoValueForTheMaterial()
     {
-        ScaledAmount take = SettlementHarvestCalculator.CalculateMaterialTake(baseValue: null, SettlementWorkAllocation.CiviliansOnTile(_POPULATION));
+        ScaledAmount take = SettlementHarvestCalculator.CalculateMaterialTake(baseValue: null, _FULL_EFFICIENCY, SettlementWorkAllocation.CiviliansOnTile(_POPULATION));
 
         Assert.That(take, Is.EqualTo(ScaledAmount.Zero));
+    }
+
+    [Test, Description("Pins that efficiency scales what the tile yields, so Tundra Stone 20 at the 5% start gives 1 a Round.")]
+    public void ShouldScaleBaseByEfficiencyWhenEfficiencyIsBelowFull()
+    {
+        ScaledAmount take = SettlementHarvestCalculator.CalculateMaterialTake(ScaledAmount.FromWhole(20), _FIVE_PERCENT, SettlementWorkAllocation.CiviliansOnTile(_POPULATION));
+
+        Assert.That(take, Is.EqualTo(ScaledAmount.FromWhole(1)));
+    }
+
+    [Test, Description("Pins that efficiency applies before the civilian cap, so a 5-civilian settlement takes 1 rather than 5% of its staffed share.")]
+    public void ShouldApplyEfficiencyBeforeCivilianCap()
+    {
+        ScaledAmount take = SettlementHarvestCalculator.CalculateMaterialTake(ScaledAmount.FromWhole(20), _FIVE_PERCENT, civilians: 5);
+
+        Assert.That(take, Is.EqualTo(ScaledAmount.FromWhole(1)));
+    }
+
+    [Test, Description("Pins that a part unit is banked as a fraction, so Arid Stone 50 at 5% gives 2.5 rather than being rounded away.")]
+    public void ShouldKeepFractionWhenEfficiencyGivesPartialUnit()
+    {
+        ScaledAmount take = SettlementHarvestCalculator.CalculateMaterialTake(ScaledAmount.FromWhole(50), _FIVE_PERCENT, SettlementWorkAllocation.CiviliansOnTile(_POPULATION));
+
+        Assert.That(take, Is.EqualTo(ScaledAmount.FromDecimal(2.5m)));
+    }
+
+    [Test, Description("Pins that a Player whose penalties floor their efficiency at zero takes nothing and never a negative amount.")]
+    public void ShouldTakeNothingWhenEfficiencyIsZero()
+    {
+        ScaledAmount take = SettlementHarvestCalculator.CalculateMaterialTake(ScaledAmount.FromWhole(40), ScaledPercent.Zero, SettlementWorkAllocation.CiviliansOnTile(_POPULATION));
+
+        Assert.That(take, Is.EqualTo(ScaledAmount.Zero));
+    }
+
+    [Test, Description("Pins the starting efficiency the design settled on: every material begins at 5% until a technology lifts it.")]
+    public void ShouldStartEveryMaterialAtFivePercent()
+    {
+        Assert.That(SettlementHarvestCalculator.STARTING_MATERIAL_EFFICIENCY.Values, Is.All.EqualTo(_FIVE_PERCENT));
+        Assert.That(SettlementHarvestCalculator.STARTING_MATERIAL_EFFICIENCY.Keys, Is.EquivalentTo(Enum.GetValues<MaterialResource>()));
     }
 
     #endregion

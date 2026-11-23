@@ -73,6 +73,8 @@ internal class BiomeSkillAridGrantTests : InMemoryTestBase
         await UpsertAsync(new UpsertExperienceTypesHandler(NullLogger<UpsertExperienceTypesHandler>.Instance, context)
             .Handle(new UpsertExperienceTypesRequest(ExperienceTypeSeedData.Build()), CancellationToken.None));
 
+        await TechnologySeedTestAssets.SeedMaterialAssetsAsync(context);
+
         await UpsertAsync(new UpsertTechnologiesHandler(NullLogger<UpsertTechnologiesHandler>.Instance, context)
             .Handle(new UpsertTechnologiesRequest(TechnologySeedData.Build()), CancellationToken.None));
     }

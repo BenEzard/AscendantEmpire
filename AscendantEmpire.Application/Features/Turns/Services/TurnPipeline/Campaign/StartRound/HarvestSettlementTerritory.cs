@@ -38,8 +38,9 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 /// then receive exactly this much anyway, so the cap costs it nothing and leaves the land alive.
 /// </para>
 /// <para>
-/// <b>Materials are taken at the biome's base value, every Round.</b> Nothing is recorded against the tile and nothing regrows, because a material value is
-/// static - see <see cref="MaterialResource"/>.
+/// <b>Materials are taken at the biome's base value times the owner's extraction efficiency, every Round.</b> Each material starts at
+/// <see cref="SettlementHarvestCalculator.STARTING_MATERIAL_EFFICIENCY"/> until a technology lifts it. Nothing is recorded against the tile and nothing regrows,
+/// because a material value is static - see <see cref="MaterialResource"/>.
 /// </para>
 /// <para>
 /// <b>The tile is only charged if the Settlement could bank the harvest.</b> Each Settlement's credit goes over on its own, so one Settlement with no bank
@@ -59,6 +60,7 @@ internal class HarvestSettlementTerritory(
     IBiomeRegenerationValueReader biomeRegenerationValueReader,
     ISustenanceAssetReader sustenanceAssetReader,
     IMaterialAssetReader materialAssetReader,
+    IPlayerExtractionEfficiencyReader extractionEfficiencyReader,
     ISightDataReader sightDataReader,
     ICampaignRiverReader campaignRiverReader,
     IAssetBankCreditService creditService,
@@ -148,10 +150,12 @@ internal class HarvestSettlementTerritory(
 
         // One read per owning Player, however many Settlements they hold.
         var valuesByPlayerId = new Dictionary<int, PlayerSustenanceValues>();
+        var efficienciesByPlayerId = new Dictionary<int, PlayerExtractionEfficiencies>();
 
         foreach (int playerId in settlements.Select(settlement => settlement.OwnerPlayerId).Distinct())
         {
             valuesByPlayerId[playerId] = await sustenanceValueReader.GetValuesAsync(db, playerId);
+            efficienciesByPlayerId[playerId] = await extractionEfficiencyReader.GetEfficienciesAsync(db, playerId);
         }
 
         IReadOnlyDictionary<SustenanceResource, int> sustenanceAssetIds = await sustenanceAssetReader.GetAssetIdsAsync(db);
@@ -182,6 +186,7 @@ internal class HarvestSettlementTerritory(
 
             long civilians = SettlementWorkAllocation.CiviliansOnTile(settlement.Population);
             PlayerSustenanceValues values = valuesByPlayerId[settlement.OwnerPlayerId];
+            PlayerExtractionEfficiencies efficiencies = efficienciesByPlayerId[settlement.OwnerPlayerId];
 
             var takenByAssetId = new Dictionary<int, ScaledAmount>();
             var sustenanceTakes = new List<SustenanceTake>();
@@ -192,7 +197,7 @@ internal class HarvestSettlementTerritory(
                 TileRivers? rivers = riversByCoord?.GetValueOrDefault(new Coord(tile.XCoord, tile.YCoord));
 
                 HarvestSustenance(tile, isWater, rivers, civilians, values, biomesByType, sustenanceAssetIds, depletionByTileId, takenByAssetId, sustenanceTakes);
-                HarvestMaterials(tile, civilians, materialAssetIds, takenByAssetId);
+                HarvestMaterials(tile, civilians, efficiencies, materialAssetIds, takenByAssetId);
             }
 
             AssetCredit[] credits =
@@ -313,11 +318,12 @@ internal class HarvestSettlementTerritory(
     /// </summary>
     /// <remarks>
     /// Nothing is charged to the tile and nothing is subtracted for what has been taken before, because a material value is static: the same amount is there
-    /// next Round. That is also why there is no river bonus and no Player modifier here - neither applies to a material.
+    /// next Round. There is no river bonus and no yield modifier, since neither applies to a material; the owner's extraction efficiency is what varies.
     /// </remarks>
     private static void HarvestMaterials(
         TerritoryTile tile,
         long civilians,
+        PlayerExtractionEfficiencies efficiencies,
         IReadOnlyDictionary<MaterialResource, int> materialAssetIds,
         Dictionary<int, ScaledAmount> takenByAssetId)
     {
@@ -329,7 +335,9 @@ internal class HarvestSettlementTerritory(
                 continue;
             }
 
-            ScaledAmount take = SettlementHarvestCalculator.CalculateMaterialTake(tile.GetMaterialBaseValue(resource), civilians);
+            ScaledPercent efficiency = efficiencies.GetEfficiency(assetId, SettlementHarvestCalculator.STARTING_MATERIAL_EFFICIENCY[resource]);
+
+            ScaledAmount take = SettlementHarvestCalculator.CalculateMaterialTake(tile.GetMaterialBaseValue(resource), efficiency, civilians);
 
             if (take <= ScaledAmount.Zero)
             {

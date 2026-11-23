@@ -213,7 +213,7 @@ values per biome are raised (or lowered) by modifiers from tech advances, specia
 departments. Each modifier can carry a flat amount, a percentage of base, or both. Some modifiers
 can be removed later (e.g. a specialist is lost), so a Player's value is always derived from the
 modifiers they currently hold, never accumulated. The **material values** (Bone, Wood, Stone,
-Special) are static: the same for every Player in every game.
+Special) are static: the same for every Player in every game. What differs per Player is how much of a material value their Settlements extract, which is the Player's extraction efficiency rather than a change to the tile — see "Harvest" in [settlements.md](../settlements.md).
 
 The **Regeneration Percent** is *not* player-specific. It is the biome's percentage, raised only on an owned tile by the owner's Settlement-scoped modifiers (see [Replenishment](replenishment.md)).
 

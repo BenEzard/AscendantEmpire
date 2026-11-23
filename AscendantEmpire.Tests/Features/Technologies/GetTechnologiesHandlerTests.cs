@@ -332,9 +332,11 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
     [Test, Description("The real seeded catalogue reads back whole, so a shape the seed produces but the read cannot serve is caught here.")]
     public async Task ShouldReturnTheWholeSeededCatalogue()
     {
-        // Both of the technology seed's own declared dependencies: its experience types by code, and the Arid biome its modifier grants name.
+        // The technology seed's own declared dependencies: its experience types by code, the Arid biome its modifier grants name, and the material Assets its
+        // efficiency grants name.
         await UpsertExperienceTypesAsync(ExperienceTypeSeedData.Build());
         await AddAridBiomeAsync();
+        await TechnologySeedTestAssets.SeedMaterialAssetsAsync(_context);
         await UpsertTechnologiesAsync(TechnologySeedData.Build());
 
         IReadOnlyCollection<CatalogueTechnology> catalogue = await GetAsync();

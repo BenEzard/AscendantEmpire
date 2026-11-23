@@ -1009,6 +1009,7 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
             .Count(prerequisite => prerequisite.PrerequisiteKind == TechnologyPrerequisiteKind.Optional));
         int authoredExperienceSources = catalogue.Count(technology => technology.ExperienceTypeCodes.Count > 0);
         int authoredModifierGrants = catalogue.Sum(technology => technology.SustenanceModifierGrants.Count);
+        int authoredEfficiencyGrants = catalogue.Sum(technology => technology.ExtractionEfficiencyGrants.Count);
 
         Assert.Multiple(() =>
         {
@@ -1021,6 +1022,7 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
                 _context.TechnologyExperienceTypes.Select(mapping => mapping.TechnologyId).Distinct().Count(),
                 Is.EqualTo(authoredExperienceSources));
             Assert.That(_context.TechnologySustenanceModifierGrants.Count(), Is.EqualTo(authoredModifierGrants));
+            Assert.That(_context.TechnologyExtractionEfficiencyGrants.Count(), Is.EqualTo(authoredEfficiencyGrants));
         });
     }
 
@@ -1115,16 +1117,18 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
     }
 
     /// <summary>
-    /// Seeds what the real technology catalogue resolves against: its experience types by code, and the Arid biome its sustenance modifier grants name.
+    /// Seeds what the real technology catalogue resolves against: its experience types by code, the Arid biome its sustenance modifier grants name, and the
+    /// material Assets its extraction efficiency grants name.
     /// </summary>
     /// <remarks>
-    /// These are the same two dependencies <c>TechnologySeedStep.DependsOn</c> declares, so a grant authored against a biome with no base for the resource
-    /// fails here rather than at seed time.
+    /// These are the same dependencies <c>TechnologySeedStep.DependsOn</c> declares, so a grant authored against a biome with no base for the resource, or
+    /// against an Asset that is not seeded, fails here rather than at seed time.
     /// </remarks>
     private async Task SeedRealCatalogueDependenciesAsync()
     {
         await SeedExperienceTypesAsync();
         await AddAridBiomeAsync();
+        await TechnologySeedTestAssets.SeedMaterialAssetsAsync(_context);
     }
 
     /// <summary>

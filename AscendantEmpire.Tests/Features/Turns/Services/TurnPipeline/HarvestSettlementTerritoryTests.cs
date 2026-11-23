@@ -104,6 +104,7 @@ internal class HarvestSettlementTerritoryTests : InMemoryTestBase
             new BiomeRegenerationValueReader(),
             new SustenanceAssetReader(),
             new MaterialAssetReader(),
+            new PlayerExtractionEfficiencyReader(),
             sightDataReader,
             new CampaignRiverReader(),
             _creditService,
@@ -291,9 +292,11 @@ internal class HarvestSettlementTerritoryTests : InMemoryTestBase
 
     #region Materials
 
-    [Test, Description("Pins that a territory tile's materials are banked at the biome's base value, which is what a static resource yields every Round.")]
+    [Test, Description("Pins that a territory tile's materials are banked at the biome's base value at full efficiency, which is what a static resource yields every Round.")]
     public async Task ShouldCreditTheBiomesMaterialBaseValuesWhenTheTileHasThemAsync()
     {
+        await GrantFullMaterialEfficiencyAsync(_PLAYER_ID);
+
         await _process.ProcessAsync(StartRoundContext());
 
         // Two grassland tiles at 40 each; the coastal and desert tiles hold neither.
@@ -307,6 +310,7 @@ internal class HarvestSettlementTerritoryTests : InMemoryTestBase
     [Test, Description("Pins that a tile stripped of its food still yields its materials in full, since nothing a Settlement takes depletes a material value.")]
     public async Task ShouldCreditTheMaterialsInFullWhenTheTilesSustenanceIsStrippedAsync()
     {
+        await GrantFullMaterialEfficiencyAsync(_PLAYER_ID);
         await AddDepletionAsync(_VILLAGE_TILE_ID, forageTaken: ScaledAmount.FromWhole(40).RawValue);
 
         await _process.ProcessAsync(StartRoundContext());
@@ -329,6 +333,7 @@ internal class HarvestSettlementTerritoryTests : InMemoryTestBase
     [Test, Description("Pins that a material whose Asset is missing from the catalogue is skipped and the rest of the harvest still lands.")]
     public async Task ShouldHarvestTheOtherMaterialsWhenOneMaterialsAssetIsNotSeededAsync()
     {
+        await GrantFullMaterialEfficiencyAsync(_PLAYER_ID);
         await RemoveAssetAsync(MaterialResourceAssets.CodesByResource[MaterialResource.Stone]);
 
         string error = await _process.ProcessAsync(StartRoundContext());
@@ -343,7 +348,80 @@ internal class HarvestSettlementTerritoryTests : InMemoryTestBase
 
     #endregion
 
+    #region Extraction efficiency
+
+    [Test, Description("Pins that an owner with no efficiency modifiers takes only the starting share of each material, which is the before-PrimitiveCrafting1 harvest.")]
+    public async Task ShouldTakeStartingShareOfMaterialsWhenOwnerHasNoEfficiencyModifiersAsync()
+    {
+        await _process.ProcessAsync(StartRoundContext());
+
+        // Two grassland tiles at 40 each, at the 5% start: 2 each, 4 in all.
+        Assert.Multiple(() =>
+        {
+            Assert.That(CreditedTo(_VILLAGE_ID, MaterialResource.Wood), Is.EqualTo(ScaledAmount.FromWhole(4)));
+            Assert.That(CreditedTo(_VILLAGE_ID, MaterialResource.Stone), Is.EqualTo(ScaledAmount.FromWhole(4)));
+        });
+    }
+
+    [Test, Description("Pins that the owner's efficiency is read per material, so +95 Stone points lift Stone to the full base and leave Wood at the start.")]
+    public async Task ShouldTakeFullMaterialsWhenOwnerHoldsEnoughPointsAsync()
+    {
+        await AddEfficiencyModifierAsync(_PLAYER_ID, MaterialResourceAssets.CodesByResource[MaterialResource.Stone], flatPoints: 95);
+
+        await _process.ProcessAsync(StartRoundContext());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(CreditedTo(_VILLAGE_ID, MaterialResource.Stone), Is.EqualTo(ScaledAmount.FromWhole(80)));
+            Assert.That(CreditedTo(_VILLAGE_ID, MaterialResource.Wood), Is.EqualTo(ScaledAmount.FromWhole(4)));
+        });
+    }
+
+    [Test, Description("Pins that an efficiency row on a food Asset changes nothing and throws nothing, because the sustenance harvest does not read efficiency.")]
+    public async Task ShouldLeaveSustenanceUnchangedWhenOwnerHoldsEfficiencyForFoodAssetAsync()
+    {
+        await AddEfficiencyModifierAsync(_PLAYER_ID, SustenanceResourceAssets.CodesByResource[SustenanceResource.Forage], flatPoints: -100);
+
+        string error = await _process.ProcessAsync(StartRoundContext());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(error, Is.Empty);
+            Assert.That(CreditedTo(_VILLAGE_ID, SustenanceResource.Forage), Is.EqualTo(ScaledAmount.FromWhole(20)));
+        });
+    }
+
+    #endregion
+
     #region Helpers
+
+    /// <summary>
+    /// Lifts every material to full efficiency for one Player, as PrimitiveCrafting1 does, for the tests that pin the harvest at the biome's whole base value.
+    /// </summary>
+    private async Task GrantFullMaterialEfficiencyAsync(int playerId)
+    {
+        foreach (string code in MaterialResourceAssets.CodesByResource.Values)
+        {
+            await AddEfficiencyModifierAsync(playerId, code, flatPoints: 95);
+        }
+    }
+
+    private async Task AddEfficiencyModifierAsync(int playerId, string assetCode, int flatPoints)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.PlayerExtractionEfficiencyModifiers.Add(new PlayerExtractionEfficiencyModifier
+        {
+            GameId = _GAME_ID,
+            PlayerId = playerId,
+            SourceType = Domain.Enums.Modifiers.ModifierSourceType.Technology,
+            SourceId = 1,
+            AssetId = _assetIdsByCode[assetCode],
+            FlatValue = ScaledPercent.FromWholePercent(flatPoints).RawValue
+        });
+
+        await context.SaveChangesAsync();
+    }
 
     private static TurnPipelineContextData StartRoundContext() =>
         new(TurnPipelineType.StartCampaignRound, _GAME_ID, _CURRENT_ROUND_NUMBER);

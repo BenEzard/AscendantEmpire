@@ -1,4 +1,5 @@
-﻿using AscendantEmpire.BackendContracts.Technologies;
+﻿using AscendantEmpire.Application.Features.Maps.Biomes.Services;
+using AscendantEmpire.BackendContracts.Technologies;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Technologies;
 
@@ -485,7 +486,12 @@ internal static class TechnologySeedData
                 DisplayName = "Primitive Crafting 1",
                 Era = TechnologyEra.Stone,
                 ExperienceRequired = 3,
-                ExperienceTypeCodes = ["Exploration"]
+                ExperienceTypeCodes = ["Exploration"],
+                // Lifts every biome material from the Settlement harvest's 5% start to full.
+                ExtractionEfficiencyGrants =
+                [
+                    .. MaterialResourceAssets.CodesByResource.Values.Select(code => new UpsertTechnologyExtractionEfficiencyGrantDto { AssetCode = code, FlatValue = 95 })
+                ]
             },
             new UpsertTechnologyDto
             {

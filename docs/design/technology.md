@@ -212,6 +212,7 @@ renames a row rather than duplicating it.
 | `technology.TechnologyPrerequisite` | The prerequisite graph. Self-referencing many-to-many, so the tree branches and merges, with a `Mandatory` / `Optional` kind per edge. |
 | `technology.TechnologyGrant` | What discovering a technology unlocks or retires: `(TargetType, TargetId)` plus an `Unlock` / `Obsolete` effect. |
 | `technology.TechnologySustenanceModifierGrant` | The Forage, Hunt, Fish and Fodder modifiers discovering a technology grants, one row per resource and biome (a null biome means every biome), each with a flat and a percentage part. Separate from `TechnologyGrant` because a modifier carries parameters rather than naming a target. |
+| `technology.TechnologyExtractionEfficiencyGrant` | The extraction efficiency modifiers discovering a technology grants, one row per naturally occurring Asset, each with flat points and a percentage of the starting efficiency. Projected onto `game.PlayerExtractionEfficiencyModifier` on discovery; the Settlement harvest reads them for Wood, Stone and Bone. See "Harvest" in [settlements.md](settlements.md). |
 | `technology.ExperienceType` | The kinds of experience an action can earn, each with a code producing systems resolve their own concept against. |
 | `technology.TechnologyExperienceType` | Which experience types feed which technology. A mapping only — it carries no quantity. |
 

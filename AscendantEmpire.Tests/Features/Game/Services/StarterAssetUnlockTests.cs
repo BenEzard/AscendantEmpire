@@ -139,9 +139,11 @@ internal class StarterAssetUnlockTests : GameSqlServerTestBase
     {
         await SeedGameAsync(mapWidth: 2, mapHeight: 2, numberOfPlayers: 1);
 
-        // Undo the base class's asset seed, leaving everything else game setup needs in place, so the failure can only be about assets.
+        // Undo the base class's asset seed, leaving everything else game setup needs in place, so the failure can only be about assets. The technology
+        // catalogue's efficiency grants name Assets, so they go first.
         await using (AscendantEmpireContext strip = await DbFactory.CreateDbContextAsync())
         {
+            await strip.TechnologyExtractionEfficiencyGrants.ExecuteDeleteAsync();
             await strip.Assets.ExecuteDeleteAsync();
             await strip.AssetGroups.ExecuteDeleteAsync();
             await strip.AssetCategories.ExecuteDeleteAsync();

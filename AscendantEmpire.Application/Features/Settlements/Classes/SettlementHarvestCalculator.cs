@@ -1,4 +1,5 @@
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
+using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.Application.Features.Settlements.Classes;
 
@@ -9,7 +10,7 @@ namespace AscendantEmpire.Application.Features.Settlements.Classes;
 /// <para>
 /// The two kinds of yield are different arithmetic because they are different things. A <b>sustenance</b> value depletes and regrows, so the take is capped
 /// at the regrowth and no more: the tile ends the Round as full as it started and a Force still finds its standing stock. A <b>material</b> value is static
-/// and is never depleted, so the take is the biome's base value, every Round, indefinitely. See "Harvest" in <c>docs/design/settlements.md</c>.
+/// and is never depleted, so the take is the biome's base value scaled by the owner's extraction efficiency, every Round, indefinitely. See "Harvest" in <c>docs/design/settlements.md</c>.
 /// </para>
 /// <para>
 /// Pure and database-free, so the rules are tested on their own; the start-of-Round process does the reading and the banking and calls this per tile and
@@ -27,6 +28,20 @@ internal static class SettlementHarvestCalculator
     /// every one of them working all of them - see <see cref="SettlementWorkAllocation"/>.
     /// </remarks>
     public const int CIVILIAN_HARVEST_RATE = 1;
+
+    /// <summary>
+    /// The share of each material's base value a Player's Settlements extract before any technology improves it.
+    /// </summary>
+    /// <remarks>
+    /// The starting efficiency the Player's extraction efficiency modifiers apply to. Low on purpose, so materials barely trickle in until <c>PrimitiveCrafting1</c>
+    /// grants the points that lift each one to full. The biome values stay what the land holds; this is how little of it a people without tools get out.
+    /// </remarks>
+    public static readonly IReadOnlyDictionary<MaterialResource, ScaledPercent> STARTING_MATERIAL_EFFICIENCY = new Dictionary<MaterialResource, ScaledPercent>
+    {
+        [MaterialResource.Wood] = ScaledPercent.FromWholePercent(5),
+        [MaterialResource.Stone] = ScaledPercent.FromWholePercent(5),
+        [MaterialResource.Bone] = ScaledPercent.FromWholePercent(5)
+    };
 
     /// <summary>
     /// What a Settlement takes of one sustenance resource: the least of what is left to its owner, what the tile regrows, and what its civilians can work.
@@ -48,24 +63,32 @@ internal static class SettlementHarvestCalculator
     }
 
     /// <summary>
-    /// What a Settlement takes of one material resource: the biome's base value, unless its civilians cannot work that much.
+    /// What a Settlement takes of one material resource: the biome's base value scaled by the owner's extraction efficiency, unless its civilians cannot work that much.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// Efficiency scales what the tile yields <b>before</b> the civilian cap, so a small Settlement on a rich seam is limited by its hands and not by both at once.
+    /// </para>
+    /// <para>
     /// Nothing is subtracted for what has been taken before, because nothing records it: a material value is static and the same amount is there next Round.
+    /// </para>
     /// </remarks>
     /// <param name="baseValue">The biome's base value for the material, or <see langword="null"/> where the biome does not have it.</param>
+    /// <param name="efficiency">The owner's extraction efficiency for the material, from <c>PlayerExtractionEfficiencies</c>.</param>
     /// <param name="civilians">The civilians working the tile, from <see cref="SettlementWorkAllocation.CiviliansOnTile"/>.</param>
     /// <returns>The amount to take, which is never negative.</returns>
-    public static ScaledAmount CalculateMaterialTake(ScaledAmount? baseValue, long civilians)
+    public static ScaledAmount CalculateMaterialTake(ScaledAmount? baseValue, ScaledPercent efficiency, long civilians)
     {
         if (baseValue is null)
         {
             return ScaledAmount.Zero;
         }
 
+        ScaledAmount yield = baseValue.Value.CalculateBonus(efficiency);
         ScaledAmount staffedShare = StaffedShare(civilians);
+        ScaledAmount take = yield < staffedShare ? yield : staffedShare;
 
-        return baseValue.Value < staffedShare ? baseValue.Value : staffedShare;
+        return take < ScaledAmount.Zero ? ScaledAmount.Zero : take;
     }
 
     /// <summary>
