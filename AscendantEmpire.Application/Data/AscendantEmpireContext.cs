@@ -334,6 +334,11 @@ public class AscendantEmpireContext : DbContext
     public DbSet<TechnologySustenanceModifierGrant> TechnologySustenanceModifierGrants { get; set; }
 
     /// <summary>
+    /// Which extraction efficiency modifiers each Technology grants when discovered - the catalogue the per-Player efficiency rows are derived from.
+    /// </summary>
+    public DbSet<TechnologyExtractionEfficiencyGrant> TechnologyExtractionEfficiencyGrants { get; set; }
+
+    /// <summary>
     /// Which kinds of experience feed which Technologies. A mapping only: the points per action are decided by the action.
     /// </summary>
     public DbSet<TechnologyExperienceType> TechnologyExperienceTypes { get; set; }
@@ -4241,6 +4246,30 @@ public class AscendantEmpireContext : DbContext
                 .IsUnique()
                 .HasFilter(null)
                 .HasDatabaseName("UX_TechnologySustenanceModifierGrant_Technology_Resource_Biome");
+        });
+
+        // --- TechnologyExtractionEfficiencyGrant ---------------------------------------
+        // One extraction efficiency modifier a Technology grants. A Player's own rows are derived from this and their discovered set, never copied onto a running total.
+        modelBuilder.Entity<TechnologyExtractionEfficiencyGrant>(entity =>
+        {
+            // A grant with neither part would change nothing, and would still take up the Technology's one row for that Asset.
+            entity.ToTable("TechnologyExtractionEfficiencyGrant", schema, table => table.HasCheckConstraint(
+                "CK_TechnologyExtractionEfficiencyGrant_HasValue",
+                "[FlatValue] <> 0 OR [PercentValue] <> 0"));
+
+            entity.HasKey(e => new { e.TechnologyId, e.AssetId });
+
+            entity.HasOne(e => e.Technology)
+                .WithMany(e => e.ExtractionEfficiencyGrants)
+                .HasForeignKey(e => e.TechnologyId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_TechnologyExtractionEfficiencyGrant_Technology_TechnologyId");
+
+            entity.HasOne(e => e.Asset)
+                .WithMany()
+                .HasForeignKey(e => e.AssetId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_TechnologyExtractionEfficiencyGrant_Asset_AssetId");
         });
 
         // --- TechnologyExperienceType --------------------------------------------------

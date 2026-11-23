@@ -102,6 +102,14 @@ public class TechnologyController : ControllerBase
                     FlatValue = grant.FlatValue,
                     PercentValue = grant.PercentValue
                 })],
+                ExtractionEfficiencyGrants = [.. technology.ExtractionEfficiencyGrants.Select(grant => new DTCatalogueExtractionEfficiencyGrant
+                {
+                    AssetId = grant.AssetId,
+                    AssetCode = grant.AssetCode,
+                    AssetDisplayName = grant.AssetDisplayName,
+                    FlatValue = grant.FlatValue,
+                    PercentValue = grant.PercentValue
+                })],
                 ExperienceSources = [.. technology.ExperienceSources.Select(source => new DTCatalogueExperienceSource
                 {
                     ExperienceTypeId = source.ExperienceTypeId,

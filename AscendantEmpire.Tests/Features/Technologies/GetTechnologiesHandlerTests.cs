@@ -286,6 +286,31 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
         });
     }
 
+    [Test, Description("An efficiency grant reads back with its Asset resolved and its values raw, matching how the sustenance grants and biome bases are served.")]
+    public async Task ShouldReturnEfficiencyGrantsWhenTechnologyHasThem()
+    {
+        int rockId = await AddAssetAsync("Probe.Rock", "Rock", isNaturallyOccurring: true);
+
+        await UpsertTechnologiesAsync(
+        [
+            Technology("Stone.PrimitiveCrafting", "Primitive Crafting") with
+            {
+                ExtractionEfficiencyGrants = [new UpsertTechnologyExtractionEfficiencyGrantDto { AssetCode = "Probe.Rock", FlatValue = 95 }]
+            }
+        ]);
+
+        CatalogueExtractionEfficiencyGrant grant = (await GetAsync()).Single().ExtractionEfficiencyGrants.Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(grant.AssetId, Is.EqualTo(rockId));
+            Assert.That(grant.AssetCode, Is.EqualTo("Probe.Rock"));
+            Assert.That(grant.AssetDisplayName, Is.EqualTo("Rock"));
+            Assert.That(grant.FlatValue, Is.EqualTo(950), "95 points are stored scaled, and the read does not unscale them");
+            Assert.That(grant.PercentValue, Is.Zero);
+        });
+    }
+
     [Test, Description("Empty child collections come back empty rather than null, so a client can iterate without a null check.")]
     public async Task ShouldReturnEmptyChildCollectionsRatherThanNull()
     {
@@ -299,6 +324,7 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
             Assert.That(technology.Prerequisites, Is.Empty);
             Assert.That(technology.Grants, Is.Empty);
             Assert.That(technology.SustenanceModifierGrants, Is.Empty);
+            Assert.That(technology.ExtractionEfficiencyGrants, Is.Empty);
             Assert.That(technology.ExperienceSources, Is.Empty);
         });
     }
@@ -400,7 +426,7 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
         return result.SuccessValue!;
     }
 
-    private async Task<int> AddAssetAsync(string code, string displayName)
+    private async Task<int> AddAssetAsync(string code, string displayName, bool isNaturallyOccurring = false)
     {
         var metaCategory = new AssetMetaCategory
         {
@@ -430,6 +456,7 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
             DisplayName = displayName,
             IconPath = string.Empty,
             IsGradedAsset = false,
+            IsNaturallyOccurring = isNaturallyOccurring,
             SortOrder = 10,
             MetaCategory = metaCategory,
             Category = category,

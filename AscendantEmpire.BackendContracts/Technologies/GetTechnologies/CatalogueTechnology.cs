@@ -85,6 +85,11 @@ public record CatalogueTechnology
     public required IReadOnlyCollection<CatalogueSustenanceModifierGrant> SustenanceModifierGrants { get; init; }
 
     /// <summary>
+    /// The extraction efficiency modifiers discovering it grants, in Asset display name order.
+    /// </summary>
+    public required IReadOnlyCollection<CatalogueExtractionEfficiencyGrant> ExtractionEfficiencyGrants { get; init; }
+
+    /// <summary>
     /// Which kinds of experience fill its experience bucket.
     /// </summary>
     public required IReadOnlyCollection<CatalogueExperienceSource> ExperienceSources { get; init; }

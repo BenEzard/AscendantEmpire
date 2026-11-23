@@ -130,6 +130,11 @@ public sealed class Technology
     public ICollection<TechnologySustenanceModifierGrant> SustenanceModifierGrants { get; set; } = [];
 
     /// <summary>
+    /// Which extraction efficiency modifiers discovering this Technology grants.
+    /// </summary>
+    public ICollection<TechnologyExtractionEfficiencyGrant> ExtractionEfficiencyGrants { get; set; } = [];
+
+    /// <summary>
     /// Which kinds of experience feed this Technology's experience bucket.
     /// </summary>
     public ICollection<TechnologyExperienceType> ExperienceTypes { get; set; } = [];

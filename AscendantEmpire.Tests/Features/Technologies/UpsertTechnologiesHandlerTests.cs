@@ -778,6 +778,184 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
 
     #endregion
 
+    #region Extraction efficiency grants
+
+    [Test, Description("An efficiency grant is stored against its Asset, with whole points and percentages scaled on the way in so a designer never writes a raw value.")]
+    public async Task ShouldScaleEfficiencyGrantValuesWhenWritten()
+    {
+        int rockId = await AddAssetAsync("Probe.Rock", isNaturallyOccurring: true);
+
+        await UpsertAsync(
+        [
+            Technology("Stone.Alpha", "Alpha") with
+            {
+                ExtractionEfficiencyGrants = [EfficiencyGrant("Probe.Rock", flatValue: 95, percentValue: 20)]
+            }
+        ]);
+
+        TechnologyExtractionEfficiencyGrant grant = _context.TechnologyExtractionEfficiencyGrants.Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(grant.AssetId, Is.EqualTo(rockId));
+            Assert.That(grant.FlatValue, Is.EqualTo(950));
+            Assert.That(grant.PercentValue, Is.EqualTo(200));
+        });
+    }
+
+    [Test, Description("A naturally occurring Asset that no extraction path reads yet is accepted, so the key stays general and the grant waits for its path.")]
+    public async Task ShouldAcceptWhenEfficiencyGrantNamesNaturallyOccurringNonMaterial()
+    {
+        await AddAssetAsync("Probe.Copper", isNaturallyOccurring: true);
+
+        await UpsertAsync(
+        [
+            Technology("Stone.Alpha", "Alpha") with
+            {
+                ExtractionEfficiencyGrants = [EfficiencyGrant("Probe.Copper", flatValue: 10)]
+            }
+        ]);
+
+        Assert.That(_context.TechnologyExtractionEfficiencyGrants.Count(), Is.EqualTo(1));
+    }
+
+    [Test, Description("Efficiency grants are replaced wholesale, so a grant dropped from the request is removed and a re-priced one is updated.")]
+    public async Task ShouldReplaceEfficiencyGrantsWholesaleWhenUpserted()
+    {
+        int rockId = await AddAssetAsync("Probe.Rock", isNaturallyOccurring: true);
+        await AddAssetAsync("Probe.Log", isNaturallyOccurring: true);
+
+        await UpsertAsync(
+        [
+            Technology("Stone.Alpha", "Alpha") with
+            {
+                ExtractionEfficiencyGrants = [EfficiencyGrant("Probe.Rock", flatValue: 95), EfficiencyGrant("Probe.Log", flatValue: 95)]
+            }
+        ]);
+
+        await UpsertAsync(
+        [
+            Technology("Stone.Alpha", "Alpha") with
+            {
+                ExtractionEfficiencyGrants = [EfficiencyGrant("Probe.Rock", flatValue: 50)]
+            }
+        ]);
+
+        TechnologyExtractionEfficiencyGrant grant = _context.TechnologyExtractionEfficiencyGrants.Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(grant.AssetId, Is.EqualTo(rockId));
+            Assert.That(grant.FlatValue, Is.EqualTo(500));
+        });
+    }
+
+    [Test, Description("An empty collection clears a technology's efficiency grants, so removing the last one through the editor actually removes it.")]
+    public async Task ShouldClearEfficiencyGrantsWhenEmptyCollectionSupplied()
+    {
+        await AddAssetAsync("Probe.Rock", isNaturallyOccurring: true);
+
+        await UpsertAsync(
+        [
+            Technology("Stone.Alpha", "Alpha") with
+            {
+                ExtractionEfficiencyGrants = [EfficiencyGrant("Probe.Rock", flatValue: 95)]
+            }
+        ]);
+
+        await UpsertAsync([Technology("Stone.Alpha", "Alpha")]);
+
+        Assert.That(_context.TechnologyExtractionEfficiencyGrants, Is.Empty);
+    }
+
+    [Test, Description("The same Asset granted twice by one technology is rejected by name, since in-memory cannot reproduce the primary key that would otherwise catch it.")]
+    public async Task ShouldRejectWhenTechnologyGrantsSameAssetTwice()
+    {
+        await AddAssetAsync("Probe.Rock", isNaturallyOccurring: true);
+
+        ServiceResultBase result = await _handler.Handle(
+            new UpsertTechnologiesRequest(
+            [
+                Technology("Stone.Alpha", "Alpha") with
+                {
+                    ExtractionEfficiencyGrants = [EfficiencyGrant("Probe.Rock", flatValue: 95), EfficiencyGrant("Probe.Rock", flatValue: 20)]
+                }
+            ]),
+            CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("Stone.Alpha"));
+        });
+    }
+
+    [Test, Description("An efficiency grant with neither a flat nor a percentage part is rejected by name, mirroring CK_TechnologyExtractionEfficiencyGrant_HasValue.")]
+    public async Task ShouldRejectWhenEfficiencyGrantHasNeitherFlatNorPercent()
+    {
+        await AddAssetAsync("Probe.Rock", isNaturallyOccurring: true);
+
+        ServiceResultBase result = await _handler.Handle(
+            new UpsertTechnologiesRequest(
+            [
+                Technology("Stone.Alpha", "Alpha") with
+                {
+                    ExtractionEfficiencyGrants = [EfficiencyGrant("Probe.Rock")]
+                }
+            ]),
+            CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("Stone.Alpha"));
+        });
+    }
+
+    [Test, Description("An efficiency grant naming an Asset the catalogue does not hold is rejected, naming the Assets catalogue as the thing to seed first.")]
+    public async Task ShouldRejectWhenEfficiencyGrantNamesUnknownAsset()
+    {
+        ServiceResultBase result = await _handler.Handle(
+            new UpsertTechnologiesRequest(
+            [
+                Technology("Stone.Alpha", "Alpha") with
+                {
+                    ExtractionEfficiencyGrants = [EfficiencyGrant("Probe.Missing", flatValue: 95)]
+                }
+            ]),
+            CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("Probe.Missing").And.Contains("Assets catalogue"));
+        });
+    }
+
+    [Test, Description("An efficiency grant naming a made Asset is rejected, because nothing extracts a made Asset from the land so the grant could never do anything.")]
+    public async Task ShouldRejectWhenEfficiencyGrantNamesAssetThatIsNotNaturallyOccurring()
+    {
+        await AddAssetAsync("Probe.Brick", isNaturallyOccurring: false);
+
+        ServiceResultBase result = await _handler.Handle(
+            new UpsertTechnologiesRequest(
+            [
+                Technology("Stone.Alpha", "Alpha") with
+                {
+                    ExtractionEfficiencyGrants = [EfficiencyGrant("Probe.Brick", flatValue: 95)]
+                }
+            ]),
+            CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("Probe.Brick").And.Contains("naturally occurring"));
+        });
+    }
+
+    #endregion
+
     #region The real seed data
 
     [Test, Description("The real seed data upserts cleanly - which also proves its prerequisite graph is acyclic, since the upsert rejects a cycle outright.")]
@@ -877,7 +1055,7 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
         return new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = code, PrerequisiteKind = kind };
     }
 
-    private async Task<int> AddAssetAsync(string code)
+    private async Task<int> AddAssetAsync(string code, bool isNaturallyOccurring = false)
     {
         var metaCategory = new AssetMetaCategory
         {
@@ -907,6 +1085,7 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
             DisplayName = code,
             IconPath = string.Empty,
             IsGradedAsset = false,
+            IsNaturallyOccurring = isNaturallyOccurring,
             SortOrder = 10,
             MetaCategory = metaCategory,
             Category = category,
@@ -999,6 +1178,16 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
         {
             Resource = resource,
             BiomeTypeId = biome,
+            FlatValue = flatValue,
+            PercentValue = percentValue
+        };
+    }
+
+    private static UpsertTechnologyExtractionEfficiencyGrantDto EfficiencyGrant(string assetCode, int flatValue = 0, int percentValue = 0)
+    {
+        return new UpsertTechnologyExtractionEfficiencyGrantDto
+        {
+            AssetCode = assetCode,
             FlatValue = flatValue,
             PercentValue = percentValue
         };

@@ -3326,6 +3326,30 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("TechnologyExperienceType", "technology");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.TechnologyExtractionEfficiencyGrant", b =>
+                {
+                    b.Property<int>("TechnologyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AssetId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("FlatValue")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("PercentValue")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("TechnologyId", "AssetId");
+
+                    b.HasIndex("AssetId");
+
+                    b.ToTable("TechnologyExtractionEfficiencyGrant", "technology", t =>
+                        {
+                            t.HasCheckConstraint("CK_TechnologyExtractionEfficiencyGrant_HasValue", "[FlatValue] <> 0 OR [PercentValue] <> 0");
+                        });
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.TechnologyGrant", b =>
                 {
                     b.Property<int>("TechnologyId")
@@ -6275,6 +6299,27 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Technology");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.TechnologyExtractionEfficiencyGrant", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.Asset", "Asset")
+                        .WithMany()
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_TechnologyExtractionEfficiencyGrant_Asset_AssetId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Technologies.Technology", "Technology")
+                        .WithMany("ExtractionEfficiencyGrants")
+                        .HasForeignKey("TechnologyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_TechnologyExtractionEfficiencyGrant_Technology_TechnologyId");
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("Technology");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.TechnologyGrant", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Technologies.Technology", "Technology")
@@ -7038,6 +7083,8 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Dependents");
 
                     b.Navigation("ExperienceTypes");
+
+                    b.Navigation("ExtractionEfficiencyGrants");
 
                     b.Navigation("Grants");
 

@@ -167,6 +167,7 @@ internal class UpsertTechnologiesHandler(
         await SyncAcquisitionCostsAsync(plan, existingTechnologies, lookups, touchedTechnologyIds, cancellationToken);
         await SyncGrantsAsync(plan, existingTechnologies, lookups, touchedTechnologyIds, cancellationToken);
         await SyncSustenanceModifierGrantsAsync(plan, existingTechnologies, touchedTechnologyIds, cancellationToken);
+        await SyncExtractionEfficiencyGrantsAsync(plan, existingTechnologies, lookups, touchedTechnologyIds, cancellationToken);
         await SyncExperienceTypesAsync(plan, existingTechnologies, lookups, touchedTechnologyIds, cancellationToken);
         await SyncPrerequisitesAsync(plan, existingTechnologies, referencedTechnologies, touchedTechnologyIds, cancellationToken);
 
@@ -174,12 +175,13 @@ internal class UpsertTechnologiesHandler(
 
         logger.LogInformation(
             "Upserted {TechnologyCount} technologies, {CostCount} acquisition costs, {PrerequisiteCount} prerequisites, {GrantCount} grants, "
-            + "{ModifierGrantCount} modifier grants, {ExperienceCount} experience mappings.",
+            + "{ModifierGrantCount} modifier grants, {EfficiencyGrantCount} efficiency grants, {ExperienceCount} experience mappings.",
             plan.Length,
             plan.Sum(item => item.Dto.AcquisitionCosts.Count),
             plan.Sum(item => item.Dto.Prerequisites.Count),
             plan.Sum(item => item.Dto.Grants.Count),
             plan.Sum(item => item.Dto.SustenanceModifierGrants.Count),
+            plan.Sum(item => item.Dto.ExtractionEfficiencyGrants.Count),
             plan.Sum(item => item.Dto.ExperienceTypeCodes.Count));
 
         return SuccessNoContent();
@@ -334,6 +336,28 @@ internal class UpsertTechnologiesHandler(
             errors.Add($"Technology grants a modifier with neither a flat nor a percentage part: {string.Join(", ", valuelessModifierGrants)}");
         }
 
+        // Caught before the database, because a composite primary key violation names the key rather than the technology.
+        string[] duplicateEfficiencyGrants = [.. plan
+            .Where(item => item.Dto.ExtractionEfficiencyGrants
+                .GroupBy(grant => grant.AssetCode)
+                .Any(group => group.Count() > 1))
+            .Select(item => item.Dto.Code)];
+
+        if (duplicateEfficiencyGrants.Length > 0)
+        {
+            errors.Add($"Technology grants an extraction efficiency to the same Asset more than once: {string.Join(", ", duplicateEfficiencyGrants)}");
+        }
+
+        // Mirrors CK_TechnologyExtractionEfficiencyGrant_HasValue.
+        string[] valuelessEfficiencyGrants = [.. plan
+            .Where(item => item.Dto.ExtractionEfficiencyGrants.Any(grant => grant.FlatValue == 0 && grant.PercentValue == 0))
+            .Select(item => item.Dto.Code)];
+
+        if (valuelessEfficiencyGrants.Length > 0)
+        {
+            errors.Add($"Technology grants an extraction efficiency with neither a flat nor a percentage part: {string.Join(", ", valuelessEfficiencyGrants)}");
+        }
+
         string[] duplicateExperienceTypes = [.. plan
             .Where(item => item.Dto.ExperienceTypeCodes
                 .GroupBy(code => code)
@@ -391,6 +415,27 @@ internal class UpsertTechnologiesHandler(
             errors.Add($"Unknown cost Asset code(s): {string.Join(", ", unknownAssets)}. The Assets catalogue must be seeded first.");
         }
 
+        string[] efficiencyAssetCodes = [.. plan
+            .SelectMany(item => item.Dto.ExtractionEfficiencyGrants)
+            .Select(grant => grant.AssetCode)
+            .Distinct()];
+
+        string[] unknownEfficiencyAssets = [.. efficiencyAssetCodes.Where(code => !lookups.Assets.ContainsKey(code))];
+
+        if (unknownEfficiencyAssets.Length > 0)
+        {
+            errors.Add($"Unknown extraction efficiency Asset code(s): {string.Join(", ", unknownEfficiencyAssets)}. The Assets catalogue must be seeded first.");
+        }
+
+        // Nothing extracts a made Asset from the land, so an efficiency grant against one could never do anything.
+        string[] madeEfficiencyAssets = [.. efficiencyAssetCodes
+            .Where(code => lookups.Assets.ContainsKey(code) && !lookups.NaturallyOccurringAssetCodes.Contains(code))];
+
+        if (madeEfficiencyAssets.Length > 0)
+        {
+            errors.Add($"Extraction efficiency can only be granted for a naturally occurring Asset: {string.Join(", ", madeEfficiencyAssets)}");
+        }
+
         // A grant naming a biome with no base for its resource could never do anything: SustenanceValueCalculator leaves a null base null whatever the modifiers say. An
         // all-biomes grant is exempt, because it is necessarily inert wherever the resource is absent and that is correct rather than an authoring mistake.
         string[] baselessModifierGrants = [.. plan
@@ -437,6 +482,7 @@ internal class UpsertTechnologiesHandler(
             .SelectMany(item => item.Dto.AcquisitionCosts)
             .Select(cost => cost.AssetCode)
             .Concat(GrantCodesFor(plan, TechnologyGrantTargetType.Asset))
+            .Concat(plan.SelectMany(item => item.Dto.ExtractionEfficiencyGrants).Select(grant => grant.AssetCode))
             .Distinct()];
 
         string[] metaCategoryCodes = [.. GrantCodesFor(plan, TechnologyGrantTargetType.AssetMetaCategory)];
@@ -454,12 +500,16 @@ internal class UpsertTechnologiesHandler(
             .Select(grant => grant.BiomeTypeId!.Value)
             .Distinct()];
 
+        var assets = assetCodes.Length == 0
+            ? []
+            : await context.Assets
+                .Where(asset => assetCodes.Contains(asset.Code))
+                .Select(asset => new { asset.Code, asset.Id, asset.IsNaturallyOccurring })
+                .ToListAsync(cancellationToken);
+
         return new ReferenceLookups(
-            Assets: assetCodes.Length == 0
-                ? []
-                : await context.Assets
-                    .Where(asset => assetCodes.Contains(asset.Code))
-                    .ToDictionaryAsync(asset => asset.Code, asset => asset.Id, cancellationToken),
+            Assets: assets.ToDictionary(asset => asset.Code, asset => asset.Id),
+            NaturallyOccurringAssetCodes: [.. assets.Where(asset => asset.IsNaturallyOccurring).Select(asset => asset.Code)],
             AssetMetaCategories: metaCategoryCodes.Length == 0
                 ? []
                 : await context.AssetMetaCategories
@@ -781,6 +831,60 @@ internal class UpsertTechnologiesHandler(
         }
     }
 
+    /// <summary>
+    /// Replaces each requested Technology's extraction efficiency grants, scaling the whole points and percentages the request carries.
+    /// </summary>
+    /// <remarks>
+    /// Keyed on the Asset, which is the primary key minus the Technology, so a re-priced grant is updated in place rather than deleted and reinserted.
+    /// </remarks>
+    private async Task SyncExtractionEfficiencyGrantsAsync(
+        TechnologyPlan[] plan,
+        Dictionary<string, Technology> technologiesByCode,
+        ReferenceLookups lookups,
+        int[] touchedTechnologyIds,
+        CancellationToken cancellationToken)
+    {
+        List<TechnologyExtractionEfficiencyGrant> stored = touchedTechnologyIds.Length == 0
+            ? []
+            : await context.TechnologyExtractionEfficiencyGrants
+                .Where(grant => touchedTechnologyIds.Contains(grant.TechnologyId))
+                .ToListAsync(cancellationToken);
+
+        foreach (TechnologyPlan item in plan)
+        {
+            Technology technology = technologiesByCode[item.Dto.Code];
+
+            Dictionary<int, (long FlatValue, long PercentValue)> desired = item.Dto.ExtractionEfficiencyGrants
+                .ToDictionary(
+                    grant => lookups.Assets[grant.AssetCode],
+                    grant => (ScaledPercent.FromWholePercent(grant.FlatValue).RawValue, ScaledPercent.FromWholePercent(grant.PercentValue).RawValue));
+
+            List<TechnologyExtractionEfficiencyGrant> current = [.. stored.Where(grant => grant.TechnologyId == technology.Id && technology.Id != 0)];
+
+            context.TechnologyExtractionEfficiencyGrants.RemoveRange(current.Where(grant => !desired.ContainsKey(grant.AssetId)));
+
+            foreach ((int assetId, (long flatValue, long percentValue)) in desired)
+            {
+                TechnologyExtractionEfficiencyGrant? existing = current.FirstOrDefault(grant => grant.AssetId == assetId);
+
+                if (existing is null)
+                {
+                    technology.ExtractionEfficiencyGrants.Add(new TechnologyExtractionEfficiencyGrant
+                    {
+                        AssetId = assetId,
+                        FlatValue = flatValue,
+                        PercentValue = percentValue
+                    });
+                }
+                else
+                {
+                    existing.FlatValue = flatValue;
+                    existing.PercentValue = percentValue;
+                }
+            }
+        }
+    }
+
     private async Task SyncExperienceTypesAsync(
         TechnologyPlan[] plan,
         Dictionary<string, Technology> technologiesByCode,
@@ -884,6 +988,7 @@ internal class UpsertTechnologiesHandler(
     /// </summary>
     private sealed record ReferenceLookups(
         Dictionary<string, int> Assets,
+        HashSet<string> NaturallyOccurringAssetCodes,
         Dictionary<string, int> AssetMetaCategories,
         Dictionary<string, int> UnitComponents,
         Dictionary<string, int> UnitTemplates,

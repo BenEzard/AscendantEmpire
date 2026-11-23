@@ -51,5 +51,7 @@ public interface ICatalogueTechnology
 
     IReadOnlyCollection<ICatalogueSustenanceModifierGrant> SustenanceModifierGrants { get; }
 
+    IReadOnlyCollection<ICatalogueExtractionEfficiencyGrant> ExtractionEfficiencyGrants { get; }
+
     IReadOnlyCollection<ICatalogueExperienceSource> ExperienceSources { get; }
 }

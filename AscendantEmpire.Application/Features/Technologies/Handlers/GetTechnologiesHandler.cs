@@ -98,6 +98,17 @@ internal class GetTechnologiesHandler(
                         PercentValue = (int)grant.PercentValue
                     })
                     .ToList(),
+                ExtractionEfficiencyGrants = technology.ExtractionEfficiencyGrants
+                    .OrderBy(grant => grant.Asset.DisplayName)
+                    .Select(grant => new CatalogueExtractionEfficiencyGrant
+                    {
+                        AssetId = grant.AssetId,
+                        AssetCode = grant.Asset.Code,
+                        AssetDisplayName = grant.Asset.DisplayName,
+                        FlatValue = (int)grant.FlatValue,
+                        PercentValue = (int)grant.PercentValue
+                    })
+                    .ToList(),
                 RawGrants = technology.Grants
                     .Select(grant => new
                     {
@@ -132,6 +143,7 @@ internal class GetTechnologiesHandler(
             Prerequisites = technology.Prerequisites,
             ExperienceSources = technology.ExperienceSources,
             SustenanceModifierGrants = technology.SustenanceModifierGrants,
+            ExtractionEfficiencyGrants = technology.ExtractionEfficiencyGrants,
             Grants = [.. technology.RawGrants
                 .Select(grant =>
                 {

@@ -37,5 +37,7 @@ public class DTCatalogueTechnology : ICatalogueTechnology
 
     public required IReadOnlyCollection<ICatalogueSustenanceModifierGrant> SustenanceModifierGrants { get; set; }
 
+    public required IReadOnlyCollection<ICatalogueExtractionEfficiencyGrant> ExtractionEfficiencyGrants { get; set; }
+
     public required IReadOnlyCollection<ICatalogueExperienceSource> ExperienceSources { get; set; }
 }
