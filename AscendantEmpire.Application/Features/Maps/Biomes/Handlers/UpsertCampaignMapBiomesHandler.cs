@@ -1,13 +1,11 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
-using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.Biomes.Validators;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Biomes;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
-using AscendantEmpire.FrontendContracts.Biomes;
 
 using Microsoft.Extensions.Logging;
 
@@ -26,7 +24,7 @@ internal class UpsertCampaignMapBiomesHandler(
     public async Task<ServiceResultBase> Handle(UpsertCampaignMapBiomesRequest request, CancellationToken cancellationToken)
     {
         // Validate the request objects
-        ServiceResultBase validation = ValidateRequestBiomes(context, request.Biomes);
+        ServiceResultBase validation = CampaignMapBiomeValidator.ValidateBiomes(request.Biomes);
 
         if (validation.HasSucceeded == false)
         {
@@ -100,37 +98,5 @@ internal class UpsertCampaignMapBiomesHandler(
         await context.SaveChangesAsync(CancellationToken.None);
 
         return ServiceResultBase.SuccessNoContent();
-    }
-
-    /// <summary>
-    /// Validates the request Biomes against the CampaignMapBiomeValidator.
-    /// </summary>
-    private static ServiceResultBase ValidateRequestBiomes(AscendantEmpireContext context, IReadOnlyCollection<IAddOrUpdateCampaignMapBiomeDto> biomes)
-    {
-        var validator = new CampaignMapBiomeValidator();
-
-        // Validate individual Biomes
-        (BiomeType BiomeType, ValidationResult ValidationResults)[] validationResults = [.. biomes.Select(biome => (biome.BiomeType, validator.Validate(biome)))];
-
-        Dictionary<BiomeType, string> biomeLookup = biomes.ToDictionary(b => b.BiomeType, b => b.Name);
-
-        string[] groupedErrors = [.. validationResults
-            .Where(result => result.ValidationResults.Errors.Count != 0)
-            .SelectMany(result =>
-                result.ValidationResults.Errors.Select(error =>
-                    $"Biome '{biomeLookup[result.BiomeType]}': {error.ErrorMessage}"))];
-
-        // Check for any duplicate BiomeTypeIds in the request object
-        string[] duplicateBiomesInRequest = [.. biomes
-            .GroupBy(b => b.BiomeType)
-            .Where(g => g.Count() > 1)
-            .Select(g => $"{biomeLookup[g.Key]} is specified multiple times in the request.")];
-
-        if (groupedErrors.Length != 0 || duplicateBiomesInRequest.Length != 0)
-        {
-            return ServiceResultBase.Fail(groupedErrors.Concat(duplicateBiomesInRequest));
-        }
-
-        return ServiceResultBase.Succeed();
     }
 }

@@ -22,7 +22,7 @@ internal class AddCampaignMapGeographyHandler(
     public async Task<ServiceResultBase> Handle(AddCampaignMapGeographyRequest request, CancellationToken cancellationToken)
     {
         // Validate the request objects
-        ServiceResultBase validation = CampaignMapGeographyValidator.ValidateGeographies(context, request.Geographies);
+        ServiceResultBase validation = CampaignMapGeographyValidator.ValidateGeographies(request.Geographies);
 
         if (validation.HasSucceeded == false)
         {

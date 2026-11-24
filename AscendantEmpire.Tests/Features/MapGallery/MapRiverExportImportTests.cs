@@ -342,7 +342,6 @@ internal sealed class MapRiverExportImportTests : SqlServerTestBase
                     DoesBlockSight = false,
                     IsWater = false,
                     IsTraversable = true,
-                    RegenerationPercent = 0.1m,
                     IsPaintableOnCampaignMap = true,
                     MapEditorHtmlColor = "#90ee90",
                     CanBeElevated = true
@@ -355,7 +354,6 @@ internal sealed class MapRiverExportImportTests : SqlServerTestBase
                     DoesBlockSight = false,
                     IsWater = true,
                     IsTraversable = false,
-                    RegenerationPercent = 0.1m,
                     IsPaintableOnCampaignMap = true,
                     MapEditorHtmlColor = "#0000ff",
                     CanBeElevated = false

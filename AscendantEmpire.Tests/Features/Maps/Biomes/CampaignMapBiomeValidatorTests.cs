@@ -1,3 +1,4 @@
+using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 using AscendantEmpire.Application.Features.Maps.Biomes.Validators;
@@ -17,6 +18,8 @@ namespace AscendantEmpire.Tests.Features.Maps.Biomes;
 internal class CampaignMapBiomeValidatorTests
 {
     private readonly CampaignMapBiomeValidator _validator = new();
+
+    #region Regeneration Percent
 
     [TestCase(0.001, Description = "The smallest stored step, 0.1%, is allowed.")]
     [TestCase(0.5, Description = "A percentage within the range is allowed.")]
@@ -105,6 +108,51 @@ internal class CampaignMapBiomeValidatorTests
         }
     }
 
+    #endregion
+
+    #region ValidateBiomes
+
+    [Test, Description("Pins that the set-level check names the biome that broke a rule, since a caller holding a whole catalogue cannot otherwise tell which row to fix.")]
+    public void ShouldNameTheBiomeThatBrokeARule()
+    {
+        AddOrUpdateCampaignMapBiomeDto biome = LandBiome() with { Name = "Hand-edited Grassland", MapEditorHtmlColor = "red" };
+
+        ServiceResultBase result = CampaignMapBiomeValidator.ValidateBiomes([biome]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("Hand-edited Grassland"));
+            Assert.That(result.Errors, Has.Some.Contains("valid hex color"));
+        }
+    }
+
+    [Test, Description("Pins that a Biome Type listed twice is reported rather than throwing, because the type is the key and the second row would be a silent overwrite at best.")]
+    public void ShouldReportABiomeTypeListedMoreThanOnce()
+    {
+        AddOrUpdateCampaignMapBiomeDto biome = LandBiome();
+
+        ServiceResultBase result = CampaignMapBiomeValidator.ValidateBiomes([biome, biome with { Name = "Second Grassland" }]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("Grassland is listed more than once."));
+        }
+    }
+
+    [Test, Description("Pins that the seeded catalogue passes as a set, which is what would catch a Biome Type the seed had come to list twice.")]
+    public void ShouldAcceptTheSeededCatalogueAsASet()
+    {
+        ServiceResultBase result = CampaignMapBiomeValidator.ValidateBiomes([.. BiomeSeedData.Build()]);
+
+        Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
+    }
+
+    #endregion
+
+    #region Helpers
+
     /// <summary>A paintable, traversable land biome with no resources and no Regeneration Percent, which passes every rule, for each test to vary.</summary>
     private static AddOrUpdateCampaignMapBiomeDto LandBiome()
     {
@@ -122,4 +170,6 @@ internal class CampaignMapBiomeValidatorTests
             CanBeElevated = true
         };
     }
+
+    #endregion
 }

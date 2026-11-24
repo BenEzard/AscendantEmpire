@@ -44,6 +44,8 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
         }
     }
 
+    #region Tests
+
     [Test, Description("A full round trip through a real zip: the copy is renamed, tile ids reallocated, and a preview render queued.")]
     public async Task ExecuteAsync_RoundTrip_RecreatesMapUnderAUniqueNameAsync()
     {
@@ -274,7 +276,70 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
         }
     }
 
-    // --- Helpers ----------------------------------------------------------------------------------
+    [Test, Description("Pins that a hand-edited archive carrying a biome colour the catalogue API would refuse fails the whole import and leaves no reference data behind.")]
+    public async Task ShouldFailTheImportWhenAnArchiveBiomeBreaksACatalogueRuleAsync()
+    {
+        // Edited past the serialiser because the exporter cannot produce this: the biome upsert path has enforced hex-only colours all along, so the case only
+        // arises in a hand-edited file.
+        MapExportDocument document = BuildDocument(baseForageWholeValue: 50);
+
+        JsonObject json = JsonSerializer.SerializeToNode(document)!.AsObject();
+        json[nameof(MapExportDocument.Biomes)]![0]![nameof(MapExportBiome.MapEditorHtmlColor)] = "red";
+
+        string zipPath = Path.Combine(_tempDirectory, "bad-biome-colour.zip");
+        await WriteZipAsync(json.ToJsonString(), zipPath);
+        int processingId = await SeedImportProcessingAsync(zipPath);
+
+        await RunImportAsync(processingId);
+
+        await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
+
+        Processing persisted = await verify.Processing.AsNoTracking().SingleAsync(p => p.ProcessingId == processingId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(persisted.Status, Is.EqualTo(ProcessingStatus.Failed));
+            Assert.That(persisted.ErrorMessage, Does.Contain("hex color"), "The message has to name the broken rule, or the author cannot tell what to fix.");
+            Assert.That(await verify.CampaignBiomes.AsNoTracking().AnyAsync(), Is.False, "The rows are judged before any insert, so a refused archive leaves nothing behind.");
+            Assert.That(
+                await verify.CampaignMapGalleryIndex.AsNoTracking().AnyAsync(index => index.MapName.StartsWith("Imported Fresh")),
+                Is.False,
+                "The map is refused whole, so not even its index survives.");
+        }
+    }
+
+    [Test, Description("Pins that a broken geography refuses the map before the archive's biomes are committed, which validating inside each insert would not, since no transaction spans the import.")]
+    public async Task ShouldFailTheImportWithoutCommittingBiomesWhenAnArchiveGeographyBreaksACatalogueRuleAsync()
+    {
+        MapExportDocument document = BuildDocument(baseForageWholeValue: 50);
+
+        JsonObject json = JsonSerializer.SerializeToNode(document)!.AsObject();
+        json[nameof(MapExportDocument.Geographies)]![0]![nameof(MapExportGeography.MovementCost)] = 0m;
+
+        string zipPath = Path.Combine(_tempDirectory, "bad-geography-cost.zip");
+        await WriteZipAsync(json.ToJsonString(), zipPath);
+        int processingId = await SeedImportProcessingAsync(zipPath);
+
+        await RunImportAsync(processingId);
+
+        await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
+
+        Processing persisted = await verify.Processing.AsNoTracking().SingleAsync(p => p.ProcessingId == processingId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(persisted.Status, Is.EqualTo(ProcessingStatus.Failed));
+            Assert.That(persisted.ErrorMessage, Does.Contain("Movement Cost"));
+            Assert.That(
+                await verify.CampaignBiomes.AsNoTracking().AnyAsync(biome => biome.BiomeTypeId == BiomeType.Grassland),
+                Is.False,
+                "The biome is judged alongside the geography and inserted after it, so a broken geography leaves no biome behind.");
+        }
+    }
+
+    #endregion
+
+    #region Helpers
 
     /// <summary>Runs the import executor for the given processing record against a fresh tracked context.</summary>
     private async Task RunImportAsync(int processingId)
@@ -608,4 +673,6 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
         await using StreamWriter writer = new(entryStream);
         await writer.WriteAsync(json);
     }
+
+    #endregion
 }

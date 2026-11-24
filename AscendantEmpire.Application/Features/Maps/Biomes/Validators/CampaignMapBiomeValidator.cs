@@ -1,4 +1,5 @@
-﻿using AscendantEmpire.Application.Common.Validation;
+﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.FrontendContracts.Biomes;
 
@@ -121,6 +122,42 @@ internal class CampaignMapBiomeValidator : Validator<IAddOrUpdateCampaignMapBiom
             }
         });
 
+    }
+
+    /// <summary>
+    /// Validates a set of Biomes against the rules above, reporting every broken rule and any Biome Type named more than once.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Shared by every writer of the Biome catalogue — the add and upsert handlers, and the campaign map import — so a Biome cannot reach the table through
+    /// one path carrying something another path would refuse.
+    /// </para>
+    /// <para>
+    /// Whether a Biome Type is already stored is deliberately not checked here, because an upsert names existing Biomes on purpose. That rule belongs to
+    /// adding, and <see cref="Handlers.AddCampaignMapBiomesHandler"/> carries it.
+    /// </para>
+    /// </remarks>
+    public static ServiceResultBase ValidateBiomes(IReadOnlyCollection<IAddOrUpdateCampaignMapBiomeDto> biomes)
+    {
+        var validator = new CampaignMapBiomeValidator();
+
+        string[] ruleErrors = [.. biomes
+            .Select(biome => (biome.Name, Result: validator.Validate(biome)))
+            .Where(validated => validated.Result.Errors.Count != 0)
+            .SelectMany(validated => validated.Result.Errors.Select(error => $"Biome '{validated.Name}': {error.ErrorMessage}"))];
+
+        // Named rather than counted, because the Biome Type is the key: a second row for one would be a silent overwrite at best.
+        string[] duplicateErrors = [.. biomes
+            .GroupBy(biome => biome.BiomeType)
+            .Where(group => group.Count() > 1)
+            .Select(group => $"{group.Key} is listed more than once.")];
+
+        if (ruleErrors.Length != 0 || duplicateErrors.Length != 0)
+        {
+            return ServiceResultBase.Fail([.. ruleErrors, .. duplicateErrors]);
+        }
+
+        return ServiceResultBase.Succeed();
     }
 
     /// <summary>

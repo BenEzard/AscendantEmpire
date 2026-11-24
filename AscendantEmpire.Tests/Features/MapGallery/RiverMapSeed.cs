@@ -50,7 +50,6 @@ internal static class RiverMapSeed
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationPercent = 0.1m,
                 IsPaintableOnCampaignMap = true,
                 MapEditorHtmlColor = "#90ee90",
                 CanBeElevated = true
@@ -63,7 +62,6 @@ internal static class RiverMapSeed
                 DoesBlockSight = false,
                 IsWater = true,
                 IsTraversable = false,
-                RegenerationPercent = 0.1m,
                 IsPaintableOnCampaignMap = true,
                 MapEditorHtmlColor = "#0000ff",
                 CanBeElevated = false

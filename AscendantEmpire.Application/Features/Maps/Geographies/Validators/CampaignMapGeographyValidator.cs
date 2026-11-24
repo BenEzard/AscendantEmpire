@@ -1,6 +1,5 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Validation;
-using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.Geographies.AddCampaignMapGeography;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -34,28 +33,37 @@ internal class CampaignMapGeographyValidator : Validator<AddOrUpdateCampaignMapG
             .WithMessage(g => $"A Geography whose {nameof(g.MovementCost)} is {CampaignGeography.IMPASSABLE_MOVEMENT_COST} or more cannot be {nameof(g.IsTraversable)}.");
     }
 
-    public static ServiceResultBase ValidateGeographies(AscendantEmpireContext context, IReadOnlyCollection<AddOrUpdateCampaignMapGeographyDto> geographies)
+    /// <summary>
+    /// Validates a set of Geographies against the rules above, reporting every broken rule and any Geography Type named more than once.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Shared by every writer of the Geography catalogue — the add and upsert handlers, and the campaign map import — so a Geography cannot reach the table
+    /// through one path carrying something another path would refuse.
+    /// </para>
+    /// <para>
+    /// Whether a Geography Type is already stored is deliberately not checked here, because an upsert names existing Geographies on purpose. That rule
+    /// belongs to adding, and <see cref="Handlers.AddCampaignMapGeographyHandler"/> carries it.
+    /// </para>
+    /// </remarks>
+    public static ServiceResultBase ValidateGeographies(IReadOnlyCollection<AddOrUpdateCampaignMapGeographyDto> geographies)
     {
         var validator = new CampaignMapGeographyValidator();
 
-        // Validate individual geographies
-        (string GeographyName, ValidationResult ValidationResults)[] validationResults = [.. geographies.Select(g => (g.Name, validator.Validate(g)))];
+        string[] ruleErrors = [.. geographies
+            .Select(geography => (geography.Name, Result: validator.Validate(geography)))
+            .Where(validated => validated.Result.Errors.Count != 0)
+            .SelectMany(validated => validated.Result.Errors.Select(error => $"Geography '{validated.Name}': {error.ErrorMessage}"))];
 
-        // Check for any duplicate CampaignMapGeographyTypeIds in the request
-        string[] duplicateGeographiesInRequest = [.. geographies
-            .GroupBy(b => b.CampaignMapGeographyType)
-            .Where(g => g.Count() > 1)
-            .Select(g => $"{g.Key} is specified multiple times in the request.")];
+        // Named rather than counted, because the Geography Type is the key: a second row for one would be a silent overwrite at best.
+        string[] duplicateErrors = [.. geographies
+            .GroupBy(geography => geography.CampaignMapGeographyType)
+            .Where(group => group.Count() > 1)
+            .Select(group => $"{group.Key} is listed more than once.")];
 
-        string[] groupedErrors = [.. validationResults
-            .Where(result => result.ValidationResults.Errors.Any())
-            .SelectMany(result =>
-                result.ValidationResults.Errors.Select(error =>
-                    $"Geography Name '{result.GeographyName}': {error.ErrorMessage}"))];
-
-        if (groupedErrors.Length != 0 || duplicateGeographiesInRequest.Length != 0)
+        if (ruleErrors.Length != 0 || duplicateErrors.Length != 0)
         {
-            return ServiceResultBase.Fail(groupedErrors.Concat(duplicateGeographiesInRequest));
+            return ServiceResultBase.Fail([.. ruleErrors, .. duplicateErrors]);
         }
 
         return ServiceResultBase.Succeed();

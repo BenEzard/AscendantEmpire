@@ -2,12 +2,17 @@ using System.IO.Compression;
 using System.Text.Json;
 
 using AscendantEmpire.Application.BackgroundServices;
+using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Maps.Biomes.Validators;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
+using AscendantEmpire.Application.Features.Maps.Geographies.Validators;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Classes;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Classes.Export;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
+using AscendantEmpire.BackendContracts.Biomes;
 using AscendantEmpire.BackendContracts.CampaignMaps;
+using AscendantEmpire.BackendContracts.Geographies.AddCampaignMapGeography;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -25,8 +30,9 @@ namespace AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 /// </summary>
 /// <remarks>
 /// Reads the zipped <c>export.json</c> staged on disk by the import endpoint, ensures the referenced
-/// biomes/geographies exist (inserting only the missing ones), then inserts a brand-new map (index, tiles
-/// and start positions). Finally it enqueues a <see cref="ProcessType.RenderCampaignMapPreview"/> job so
+/// biomes/geographies exist (inserting only the missing ones, and only once they satisfy the catalogue's
+/// own validators), then inserts a brand-new map (index, tiles and start positions). Finally it enqueues
+/// a <see cref="ProcessType.RenderCampaignMapPreview"/> job so
 /// the preview PNGs are regenerated locally (the bundled previews are not portable across machines).
 /// </remarks>
 internal sealed class MapImportExecutor(
@@ -66,12 +72,17 @@ internal sealed class MapImportExecutor(
 
             await UpdateProgressAsync(processing, 15, cancellationToken);
 
-            // --- Biomes (insert only the ones that don't already exist) -------------------
-            await ImportMissingBiomesAsync(document, cancellationToken);
+            // --- Reference data (only the ids this database has never seen are inserted) ---
+            MapExportBiome[] missingBiomes = await FindMissingBiomesAsync(document, cancellationToken);
+            MapExportGeography[] missingGeographies = await FindMissingGeographiesAsync(document, cancellationToken);
+
+            // Judged before either insert, so a refused archive leaves no reference data behind.
+            RejectInvalidReferenceData(missingBiomes, missingGeographies);
+
+            await InsertBiomesAsync(missingBiomes, cancellationToken);
             await UpdateProgressAsync(processing, 30, cancellationToken);
 
-            // --- Geographies (insert only the ones that don't already exist) --------------
-            await ImportMissingGeographiesAsync(document, cancellationToken);
+            await InsertGeographiesAsync(missingGeographies, cancellationToken);
             await UpdateProgressAsync(processing, 45, cancellationToken);
 
             // --- Index --------------------------------------------------------------------
@@ -122,9 +133,6 @@ internal sealed class MapImportExecutor(
     }
 
     /// <summary>
-    /// Opens the staged zip and deserialises the <c>export.json</c> entry into a <see cref="MapExportDocument"/>.
-    /// </summary>
-    /// <summary>
     /// Throws when the archive is older than the importer can read correctly.
     /// </summary>
     private static void RejectUnsupportedFormatVersion(MapExportDocument document)
@@ -139,6 +147,9 @@ internal sealed class MapImportExecutor(
         }
     }
 
+    /// <summary>
+    /// Opens the staged zip and deserialises the <c>export.json</c> entry into a <see cref="MapExportDocument"/>.
+    /// </summary>
     private static MapExportDocument ReadDocument(string zipPath)
     {
         using ZipArchive archive = ZipFile.OpenRead(zipPath);
@@ -161,32 +172,135 @@ internal sealed class MapImportExecutor(
     }
 
     /// <summary>
-    /// Inserts any biomes referenced by the export that are not already present.
+    /// The archive's biomes whose ids this database has never seen, which are the only ones an import inserts.
     /// </summary>
     /// <remarks>
-    /// Existing biomes are left untouched — other maps depend on that shared reference data. Base asset
-    /// values are exported as whole numbers and converted back to the scaled raw storage value here.
+    /// Existing biomes are left untouched — other maps depend on that shared reference data, so a document claiming something different about one does not
+    /// change what it is here.
     /// </remarks>
-    private async Task ImportMissingBiomesAsync(MapExportDocument document, CancellationToken cancellationToken)
+    private async Task<MapExportBiome[]> FindMissingBiomesAsync(MapExportDocument document, CancellationToken cancellationToken)
     {
         if (document.Biomes.Count == 0)
+        {
+            return [];
+        }
+
+        HashSet<BiomeType> existingBiomeIds = await context.CampaignBiomes
+            .Select(biome => biome.BiomeTypeId)
+            .ToHashSetAsync(cancellationToken);
+
+        return [.. document.Biomes.Where(biome => existingBiomeIds.Contains(biome.BiomeTypeId) == false)];
+    }
+
+    /// <summary>
+    /// The archive's geographies whose ids this database has never seen, which are the only ones an import inserts.
+    /// </summary>
+    private async Task<MapExportGeography[]> FindMissingGeographiesAsync(MapExportDocument document, CancellationToken cancellationToken)
+    {
+        if (document.Geographies.Count == 0)
+        {
+            return [];
+        }
+
+        HashSet<CampaignMapGeographyType> existingGeographyIds = await context.CampaignGeographies
+            .Select(geography => geography.CampaignMapGeographyTypeId)
+            .ToHashSetAsync(cancellationToken);
+
+        return [.. document.Geographies.Where(geography => existingGeographyIds.Contains(geography.GeographyTypeId) == false)];
+    }
+
+    /// <summary>
+    /// Puts the biomes and geographies the archive would insert through the catalogue's own validators, and refuses the whole import if any row breaks a rule.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// These are global shared reference data rows, so a malformed archive would corrupt what every other campaign map reads. An import is a writer like any
+    /// other, and cannot introduce a biome or geography the catalogue API would have refused — a colour that is not hex, a water biome carrying Stone, an
+    /// elevated water geography.
+    /// </para>
+    /// <para>
+    /// Only the rows that would be inserted are judged. An archive naming a biome this database already holds writes nothing, so what it claims about that one
+    /// is not worth refusing a map over — the same reasoning that has <see cref="ValidateRiversAsync"/> read IsWater from this database rather than from the
+    /// document.
+    /// </para>
+    /// <para>
+    /// Run before either insert, because the import has no transaction spanning its steps: refusing here leaves nothing behind, while refusing between the two
+    /// inserts would leave the new biomes committed.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">A biome or geography the archive would insert breaks a catalogue rule.</exception>
+    private static void RejectInvalidReferenceData(IReadOnlyCollection<MapExportBiome> biomes, IReadOnlyCollection<MapExportGeography> geographies)
+    {
+        ServiceResultBase biomeValidation = CampaignMapBiomeValidator.ValidateBiomes([.. biomes.Select(ToBiomeDto)]);
+        ServiceResultBase geographyValidation = CampaignMapGeographyValidator.ValidateGeographies([.. geographies.Select(ToGeographyDto)]);
+
+        string[] errors = [.. biomeValidation.Errors, .. geographyValidation.Errors];
+
+        if (errors.Length == 0)
         {
             return;
         }
 
-        HashSet<BiomeType> existingBiomeIds = await context.CampaignBiomes
-            .Select(b => b.BiomeTypeId)
-            .ToHashSetAsync(cancellationToken);
+        throw new InvalidOperationException(
+            $"The imported map's biomes and geographies are not valid, so nothing was imported. {string.Join(" ", errors)}");
+    }
 
-        bool added = false;
+    /// <summary>
+    /// The archive's biome as the catalogue's validator reads it.
+    /// </summary>
+    /// <remarks>
+    /// Base values stay the whole numbers the archive carries, because that is the scale the rules are written against — the conversion to the scaled raw
+    /// storage value happens on insert.
+    /// </remarks>
+    private static AddOrUpdateCampaignMapBiomeDto ToBiomeDto(MapExportBiome biome) => new()
+    {
+        BiomeType = biome.BiomeTypeId,
+        Name = biome.Name,
+        MovementCost = biome.MovementCost,
+        DoesBlockSight = biome.DoesBlockSight,
+        IsWater = biome.IsWater,
+        IsTraversable = biome.IsTraversable,
+        RegenerationPercent = biome.RegenerationPercent,
+        IsPaintableOnCampaignMap = biome.IsPaintableOnCampaignMap,
+        MapEditorHtmlColor = biome.MapEditorHtmlColor,
+        CanBeElevated = biome.CanBeElevated,
+        BaseForageValue = biome.BaseForageValue,
+        BaseHuntValue = biome.BaseHuntValue,
+        BaseFishValue = biome.BaseFishValue,
+        BaseFodderValue = biome.BaseFodderValue,
+        BaseBoneValue = biome.BaseBoneValue,
+        BaseWoodValue = biome.BaseWoodValue,
+        BaseStoneValue = biome.BaseStoneValue
+    };
 
-        foreach (MapExportBiome exportBiome in document.Biomes)
+    /// <summary>
+    /// The archive's geography as the catalogue's validator reads it.
+    /// </summary>
+    private static AddOrUpdateCampaignMapGeographyDto ToGeographyDto(MapExportGeography geography) => new()
+    {
+        CampaignMapGeographyType = geography.GeographyTypeId,
+        Name = geography.Name,
+        RelativeElevation = geography.RelativeElevation,
+        MovementCost = geography.MovementCost,
+        IsWater = geography.IsWater,
+        IsTraversable = geography.IsTraversable,
+        MapEditorIcon = geography.MapEditorIcon,
+        IsPaintableOnCampaignMap = geography.IsPaintableOnCampaignMap
+    };
+
+    /// <summary>
+    /// Inserts the given biomes, which have already been judged and filtered down to the ones this database is missing.
+    /// </summary>
+    /// <remarks>Base asset values are exported as whole numbers and converted back to the scaled raw storage value here.</remarks>
+    private async Task InsertBiomesAsync(IReadOnlyCollection<MapExportBiome> biomes, CancellationToken cancellationToken)
+    {
+        if (biomes.Count == 0)
         {
-            if (existingBiomeIds.Contains(exportBiome.BiomeTypeId))
-            {
-                continue;
-            }
+            return;
+        }
 
+        foreach (MapExportBiome exportBiome in biomes)
+        {
             context.CampaignBiomes.Add(new CampaignBiome
             {
                 BiomeTypeId = exportBiome.BiomeTypeId,
@@ -208,39 +322,23 @@ internal sealed class MapImportExecutor(
                 BaseWoodValue = ScaledResourceValue.ToRaw(exportBiome.BaseWoodValue),
                 BaseStoneValue = ScaledResourceValue.ToRaw(exportBiome.BaseStoneValue)
             });
-
-            added = true;
         }
 
-        if (added)
-        {
-            await context.SaveChangesAsync(cancellationToken);
-        }
+        await context.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>
-    /// Inserts any geographies referenced by the export that are not already present. Existing rows are left untouched.
+    /// Inserts the given geographies, which have already been judged and filtered down to the ones this database is missing.
     /// </summary>
-    private async Task ImportMissingGeographiesAsync(MapExportDocument document, CancellationToken cancellationToken)
+    private async Task InsertGeographiesAsync(IReadOnlyCollection<MapExportGeography> geographies, CancellationToken cancellationToken)
     {
-        if (document.Geographies.Count == 0)
+        if (geographies.Count == 0)
         {
             return;
         }
 
-        HashSet<CampaignMapGeographyType> existingGeographyIds = await context.CampaignGeographies
-            .Select(g => g.CampaignMapGeographyTypeId)
-            .ToHashSetAsync(cancellationToken);
-
-        bool added = false;
-
-        foreach (MapExportGeography exportGeography in document.Geographies)
+        foreach (MapExportGeography exportGeography in geographies)
         {
-            if (existingGeographyIds.Contains(exportGeography.GeographyTypeId))
-            {
-                continue;
-            }
-
             context.CampaignGeographies.Add(new CampaignGeography
             {
                 CampaignMapGeographyTypeId = exportGeography.GeographyTypeId,
@@ -252,14 +350,9 @@ internal sealed class MapImportExecutor(
                 MapEditorIcon = exportGeography.MapEditorIcon,
                 IsPaintableOnCampaignMap = exportGeography.IsPaintableOnCampaignMap
             });
-
-            added = true;
         }
 
-        if (added)
-        {
-            await context.SaveChangesAsync(cancellationToken);
-        }
+        await context.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>
@@ -300,15 +393,6 @@ internal sealed class MapImportExecutor(
         return newIndex;
     }
 
-    /// <summary>
-    /// Inserts all tiles for the imported map, allocating globally-unique <c>CampaignMapGalleryId</c>s and
-    /// reconstructing X/Y from each tile's row-major <c>RelativeId</c>.
-    /// </summary>
-    /// <remarks>
-    /// <see cref="CampaignMapGallery.CampaignMapGalleryId"/> is not database-generated and is unique across
-    /// every map, so ids are allocated as <c>MAX(CampaignMapGalleryId)+1</c>. The read and inserts run inside a
-    /// transaction; background jobs are processed one at a time, but this keeps the allocation atomic.
-    /// </remarks>
     /// <summary>
     /// Puts the document's rivers through the same authoring rules the map editor writes under, and refuses the import if any of
     /// them are broken.
@@ -385,6 +469,15 @@ internal sealed class MapImportExecutor(
     /// <summary>The coordinate a row-major tile index refers to, which is how an export names a tile.</summary>
     private static (int X, int Y) FromRelativeId(int relativeId, int width) => (relativeId % width, relativeId / width);
 
+    /// <summary>
+    /// Inserts all tiles for the imported map, allocating globally-unique <c>CampaignMapGalleryId</c>s and
+    /// reconstructing X/Y from each tile's row-major <c>RelativeId</c>.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="CampaignMapGallery.CampaignMapGalleryId"/> is not database-generated and is unique across
+    /// every map, so ids are allocated as <c>MAX(CampaignMapGalleryId)+1</c>. The read and inserts run inside a
+    /// transaction; background jobs are processed one at a time, but this keeps the allocation atomic.
+    /// </remarks>
     private async Task ImportTilesAsync(MapExportDocument document, CampaignMapGalleryIndex newIndex, CancellationToken cancellationToken)
     {
         int width = newIndex.Width;

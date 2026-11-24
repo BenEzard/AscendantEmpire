@@ -37,7 +37,7 @@ internal class CampaignMapGeographyValidatorTests
 
     private static ServiceResultBase Validate(AddOrUpdateCampaignMapGeographyDto geography)
     {
-        return CampaignMapGeographyValidator.ValidateGeographies(null!, [geography]);
+        return CampaignMapGeographyValidator.ValidateGeographies([geography]);
     }
 
     [Test, Description("Pins that water geography cannot be elevated, the same rule tile painting already enforces, so the catalogue cannot hold a combination the map editor would refuse.")]
@@ -108,7 +108,7 @@ internal class CampaignMapGeographyValidatorTests
     [Test, Description("Pins that the catalogue the seed ships passes its own validator, which is what would catch a rule written tighter than the data it has to admit.")]
     public void ShouldSucceedForEverySeededGeography()
     {
-        ServiceResultBase result = CampaignMapGeographyValidator.ValidateGeographies(null!, [.. GeographySeedData.Build()]);
+        ServiceResultBase result = CampaignMapGeographyValidator.ValidateGeographies([.. GeographySeedData.Build()]);
 
         Assert.That(result.HasSucceeded, Is.True, $"The seeded Geographies were rejected: {string.Join("; ", result.Errors ?? [])}");
     }

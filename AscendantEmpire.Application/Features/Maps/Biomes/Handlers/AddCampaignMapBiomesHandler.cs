@@ -1,14 +1,13 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
-using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.Biomes.Validators;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Biomes;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
-using AscendantEmpire.FrontendContracts.Biomes;
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
@@ -25,12 +24,34 @@ internal class AddCampaignMapBiomesHandler(
     public async Task<ServiceResultBase> Handle(AddCampaignMapBiomesRequest request, CancellationToken cancellationToken)
     {
         // Validate the request objects
-        ServiceResultBase validation = ValidateRequestBiomes(context, request.Biomes);
+        ServiceResultBase validation = CampaignMapBiomeValidator.ValidateBiomes(request.Biomes);
 
         if (validation.HasSucceeded == false)
         {
             logger.LogWarning("Validation failed for " + nameof(AddCampaignMapBiomesRequest) + ": {Errors}", string.Join(Environment.NewLine, validation.Errors));
             return ServiceResult.Fail(validation.Errors);
+        }
+
+        // BiomeTypeId is the key, so a Biome that is already stored cannot be added a second time. This is checked here rather than in
+        // CampaignMapBiomeValidator because UpsertCampaignMapBiomesHandler validates a request that deliberately names Biomes that already exist, and then
+        // updates them — the rule belongs to adding, not to the shape of the request.
+        BiomeType[] requestedTypes = [.. request.Biomes.Select(biome => biome.BiomeType)];
+
+        BiomeType[] alreadyStored = await context.CampaignBiomes
+            .Where(biome => requestedTypes.Contains(biome.BiomeTypeId))
+            .Select(biome => biome.BiomeTypeId)
+            .ToArrayAsync(cancellationToken);
+
+        if (alreadyStored.Length != 0)
+        {
+            string[] errors = [.. alreadyStored.Select(type => $"{type} is already a Biome. Either delete the existing Biome or edit it.")];
+
+            logger.LogWarning(
+                "Refused " + nameof(AddCampaignMapBiomesRequest) + " for {BiomeCount} Biomes already stored: {Biomes}.",
+                alreadyStored.Length,
+                string.Join(", ", alreadyStored));
+
+            return ServiceResultBase.Fail(errors);
         }
 
         // Map the request DTOs to domain entities
@@ -61,45 +82,5 @@ internal class AddCampaignMapBiomesHandler(
         await context.SaveChangesAsync(CancellationToken.None);
 
         return ServiceResultBase.Created();
-    }
-
-    /// <summary>
-    /// Validates the request Biomes against the CampaignMapBiomeValidator.
-    /// </summary>
-    /// <remarks>Checks there isn't already a record with the same BiomeTypeId in the table</remarks>
-    private static ServiceResultBase ValidateRequestBiomes(AscendantEmpireContext context, IReadOnlyCollection<IAddOrUpdateCampaignMapBiomeDto> biomes)
-    {
-        var validator = new CampaignMapBiomeValidator();
-
-        // Validate individual Biomes
-        (BiomeType BiomeType, ValidationResult ValidationResults)[] validationResults = [.. biomes.Select(biome => (biome.BiomeType, validator.Validate(biome)))];
-
-        string[] groupedErrors = [.. validationResults
-            .Where(result => result.ValidationResults.Errors.Count != 0)
-            .SelectMany(result =>
-                result.ValidationResults.Errors.Select(error =>
-                    $"Biome '{result.BiomeType}': {error.ErrorMessage}"))];
-
-        // Check the Biome Type Id isn't already in the database
-        BiomeType[] biomeTypeIdsInRequest = [.. biomes.Select(b => b.BiomeType)];
-        string[] duplicateBiomesInDatabase = [.. context.CampaignBiomes
-            .Select(b => b.BiomeTypeId)
-            .Where(id => biomeTypeIdsInRequest.Contains(id))
-            .Select(id => $"{(BiomeType)id} is already a Biome. Either delete the existing Biome or edit it.")];
-
-        // Check for any duplicate BiomeTypeIds in the request object
-        string[] duplicateBiomesInRequest = [.. biomes
-            .GroupBy(b => b.BiomeType)
-            .Where(g => g.Count() > 1)
-            .Select(g => $"{g.Key} is specified multiple times in the request.")];
-
-        string[] duplicateErrors = [.. duplicateBiomesInDatabase, .. duplicateBiomesInRequest];
-
-        if (groupedErrors.Length != 0 || duplicateErrors.Length != 0)
-        {
-            return ServiceResultBase.Fail(groupedErrors.Concat(duplicateErrors));
-        }
-
-        return ServiceResultBase.Succeed();
     }
 }
