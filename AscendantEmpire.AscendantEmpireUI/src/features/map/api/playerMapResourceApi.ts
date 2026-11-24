@@ -17,8 +17,8 @@ export interface PlayerMapResource {
   displayName: string;
 
   /**
-   * The image to draw on the tile, or null for a type the biome already says — a forest's wood. The game map draws no marker at all for those; see
-   * MapResourceIcon, whose fish stand-in is for the map editor only.
+   * The image to draw on the tile, or null for a type the biome already says — a forest's wood. The game map draws no marker at all for those, and names
+   * them in the tile's title instead.
    */
   iconPath: string | null;
 

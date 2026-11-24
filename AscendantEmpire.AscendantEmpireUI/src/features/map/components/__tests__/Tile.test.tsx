@@ -28,7 +28,7 @@ describe("Tile MapResources", () => {
     expect(Array.from(images).map((image) => image.getAttribute("src"))).toEqual(["/resources/food/berries_40px.png", "/resources/ore/copper_40px.png"]);
   });
 
-  /** MapResourceIcon's fish is the map editor's stand-in. A type the biome already says must draw nothing at all to a player. */
+  /** A type the biome already says must draw nothing at all, not even an empty resource corner. */
   it("draws no marker for a resource whose type has no icon", () => {
     const { container } = renderTile([berries({ name: "Wood", iconPath: null })]);
 

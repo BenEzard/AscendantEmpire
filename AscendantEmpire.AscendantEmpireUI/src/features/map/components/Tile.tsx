@@ -171,8 +171,8 @@ const Tile = React.memo(function Tile({
   // thing showing through. The server withholds them as well; this keeps the fog honest whatever a later discovery rule reports.
   const knownMapResources = tile.isExplored ? mapResources : undefined;
 
-  // Only a resource with an icon of its own is drawn. A type the biome already says — a forest's wood — has none, and MapResourceIcon's fish stand-in is
-  // for the map editor, so those are left off the tile and named in its title instead.
+  // Only a resource with an icon of its own is drawn. A type the biome already says — a forest's wood — has none, so those are left off the tile and
+  // named in its title instead.
   const drawnMapResources = knownMapResources?.filter((marker) => marker.iconPath != null);
 
   // The title names the tile's MapResources after whatever the caller's title says, the same way the map editor's tile does, and with each estimate where
