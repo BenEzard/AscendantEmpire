@@ -34,6 +34,8 @@ export interface NotificationsProviderProps {
   sightingReports: SightingReport[];
   /** Names for the ids a report carries. Should be memoised by the caller, since a fresh object re-derives every group. */
   sightingDescriptionContext: SightingDescriptionContext;
+  /** Map images by template, for drawing each Force that still needs orders. */
+  unitImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
   children: ReactNode;
 }
 
@@ -41,6 +43,7 @@ function useNotificationsState(
   endTurnActions: PossibleAction[],
   sightingReports: SightingReport[],
   sightingDescriptionContext: SightingDescriptionContext,
+  unitImageSrcByUnitTemplateId: ReadonlyMap<number, string> | undefined,
 ): UseNotificationsResult {
   // Items the player has dealt with or waved away. Held apart from the groups because the groups are derived, so there is nowhere in them to record it.
   const [dismissedIds, setDismissedIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -62,7 +65,10 @@ function useNotificationsState(
   const markHandled = removeItem;
 
   const normalizedGroups = useMemo(() => {
-    const filtered = [...buildEndTurnActionGroups(endTurnActions), ...buildSightingReportGroups(sightingReports, sightingDescriptionContext)]
+    const filtered = [
+      ...buildEndTurnActionGroups(endTurnActions, unitImageSrcByUnitTemplateId),
+      ...buildSightingReportGroups(sightingReports, sightingDescriptionContext),
+    ]
       .map((group) => ({ ...group, items: group.items.filter((item) => !item.isHandled && !dismissedIds.has(item.id)) }))
       .filter((group) => group.items.length > 0);
 
@@ -75,7 +81,7 @@ function useNotificationsState(
     });
 
     return filtered;
-  }, [endTurnActions, sightingReports, sightingDescriptionContext, dismissedIds]);
+  }, [endTurnActions, unitImageSrcByUnitTemplateId, sightingReports, sightingDescriptionContext, dismissedIds]);
 
   const clearAll = useCallback(() => {
     setDismissedIds(new Set(normalizedGroups.flatMap((group) => group.items.map((item) => item.id))));
@@ -101,8 +107,14 @@ function useNotificationsState(
   };
 }
 
-export function NotificationsProvider({ endTurnActions, sightingReports, sightingDescriptionContext, children }: NotificationsProviderProps) {
-  const value = useNotificationsState(endTurnActions, sightingReports, sightingDescriptionContext);
+export function NotificationsProvider({
+  endTurnActions,
+  sightingReports,
+  sightingDescriptionContext,
+  unitImageSrcByUnitTemplateId,
+  children,
+}: NotificationsProviderProps) {
+  const value = useNotificationsState(endTurnActions, sightingReports, sightingDescriptionContext, unitImageSrcByUnitTemplateId);
   return createElement(NotificationsContext.Provider, { value }, children);
 }
 

@@ -171,6 +171,27 @@ describe("useForceSelection", () => {
     expect(selectedIds(result)).toEqual([2]);
   });
 
+  it("selects the preferred force over the strongest, and still offers the whole tile in the bar", () => {
+    const { result } = renderForceSelection();
+
+    act(() => {
+      result.current.selectForceFromTile(tile([force({ id: 1, healthyTroops: 10 }), force({ id: 2, healthyTroops: 90 })]), 1);
+    });
+
+    expect(selectedIds(result)).toEqual([1]);
+    expect(result.current.forceSelectionTile?.forces.map((f) => f.id)).toEqual([1, 2]);
+  });
+
+  it("falls back to the strongest force when the preferred one is no longer on the tile", () => {
+    const { result } = renderForceSelection();
+
+    act(() => {
+      result.current.selectForceFromTile(tile([force({ id: 1, healthyTroops: 10 }), force({ id: 2, healthyTroops: 90 })]), 99);
+    });
+
+    expect(selectedIds(result)).toEqual([2]);
+  });
+
   it("changes the selection when a force is chosen from the bar", () => {
     const { result } = renderForceSelection();
     const weakerForce = force({ id: 1, healthyTroops: 10 });

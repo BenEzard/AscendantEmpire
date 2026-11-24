@@ -21,6 +21,8 @@ export type PossibleAction = {
   /** The record the action concerns — a force id for the movement checks. */
   id: number;
   recordTypeId: number;
+  /** The template a Force was built from, for drawing its image. Null for actions that are not about a Unit. */
+  unitTemplateId: number | null;
 };
 
 export type EndCampaignTurnOutcome = {
@@ -89,6 +91,7 @@ function mapPossibleActions(actions: PossibleActionWireDto[] | undefined): Possi
     yCoord: action.yCoord ?? null,
     id: action.id ?? 0,
     recordTypeId: action.recordTypeId ?? 0,
+    unitTemplateId: action.unitTemplateId ?? null,
   }));
 }
 

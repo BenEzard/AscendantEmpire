@@ -21,7 +21,7 @@ function wrapper({ children }: { children: ReactNode }) {
 function anAnswer(): CampaignPossibleActions {
   return {
     isYourTurn: true,
-    possibleActions: [{ category: "Military", description: "Alpha has movement remaining.", xCoord: 3, yCoord: 4, id: 11, recordTypeId: 1 }],
+    possibleActions: [{ category: "Military", description: "Settler (1/1)", xCoord: 3, yCoord: 4, id: 11, recordTypeId: 1, unitTemplateId: 5 }],
   };
 }
 

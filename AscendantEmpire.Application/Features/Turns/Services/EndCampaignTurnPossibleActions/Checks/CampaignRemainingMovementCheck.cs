@@ -24,7 +24,6 @@ internal sealed class CampaignRemainingMovementCheck(
 
         // Find Forces with remaining movement on the Campaign Map
         var idleForces = await db.UnitInstances
-            .Include(t => t.CampaignMap)
             .Where(t => t.GameId == actionContext.GameId)
             .Where(t => t.PlayerId == actionContext.PlayerId)
             .Where(t => t.BattleMapTileId == null)
@@ -36,7 +35,10 @@ internal sealed class CampaignRemainingMovementCheck(
             .Select(t => new
             {
                 t.Id,
-                t.Name,
+                t.UnitTemplateId,
+                TemplateName = t.UnitTemplate.Compiled!.DisplayName,
+                t.CampaignMovementRemaining,
+                t.UnitTemplate.Compiled!.CampaignMovementPoints,
                 Coord = new Coord(t.CampaignMap.XCoord, t.CampaignMap.YCoord),
             })
             .ToListAsync(cancellationToken);
@@ -44,12 +46,14 @@ internal sealed class CampaignRemainingMovementCheck(
         // TODO: Analyse the idle Forces and surrounding radius to see if any of them can actually move anywhere.
 
         return [.. idleForces.Select(t =>
-            new PossibleAction {
+            new PossibleAction
+            {
                 Category = InformationCategory.Military,
-                Description = $"{(string.IsNullOrWhiteSpace(t.Name) ? "Unnamed" : t.Name)} has movement remaining.",
+                Description = ForceMovementDescription.Describe(t.TemplateName, t.CampaignMovementRemaining, t.CampaignMovementPoints),
                 Id = t.Id,
                 Coord = t.Coord,
-                RecordTypeId = (int)RecordType.Unit // TODO: Determine whether this is a Unit or a Command
+                RecordTypeId = (int)RecordType.Unit, // TODO: Determine whether this is a Unit or a Command
+                UnitTemplateId = t.UnitTemplateId
             })];
     }
 }

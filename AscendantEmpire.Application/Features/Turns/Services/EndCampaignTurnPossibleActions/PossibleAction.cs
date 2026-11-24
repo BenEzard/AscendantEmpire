@@ -14,6 +14,7 @@ public record PossibleAction : IPossibleAction
     public Coord? Coord { get; init; }
     public int Id { get; init; }
     public int RecordTypeId { get; init; }
+    public int? UnitTemplateId { get; init; }
 
     /// <summary>
     /// The action's tile, flattened out of <see cref="Coord"/> for the wire.

@@ -8,10 +8,11 @@ export interface NotificationsHostProps {
   toolbarBottomPx: number;
   onPanTo: (x: number, y: number) => void;
   onOpenDialog: (dialog: "unit-orders" | "trade" | "city" | "research", payload?: unknown) => void;
+  onSelectForce: (x: number, y: number, forceId: number) => void;
   onPanelOpenChange?: (open: boolean) => void;
 }
 
-export default function NotificationsHost({ toolbarBottomPx, onPanTo, onOpenDialog, onPanelOpenChange }: NotificationsHostProps) {
+export default function NotificationsHost({ toolbarBottomPx, onPanTo, onOpenDialog, onSelectForce, onPanelOpenChange }: NotificationsHostProps) {
   const { groups, totalCount } = useNotifications();
   const [panelOpen, setPanelOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<NotificationGroupType>>(() => new Set());
@@ -55,8 +56,9 @@ export default function NotificationsHost({ toolbarBottomPx, onPanTo, onOpenDial
     (item: NotificationItem) => {
       if (item.location) onPanTo(item.location.x, item.location.y);
       if (item.action?.kind === "open-dialog") onOpenDialog(item.action.dialog, item.action.payload);
+      if (item.action?.kind === "select-force" && item.location) onSelectForce(item.location.x, item.location.y, item.action.forceId);
     },
-    [onOpenDialog, onPanTo],
+    [onOpenDialog, onPanTo, onSelectForce],
   );
 
   return (

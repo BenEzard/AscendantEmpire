@@ -390,9 +390,14 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     [describeSelection, openToast, selectedForceIdList, selectedForces, settleMutation, startTakeResources],
   );
 
-  /** Selects the player's force on a clicked tile, and offers every owned force there in the selection bar. */
+  /**
+   * Selects the player's force on a clicked tile, and offers every owned force there in the selection bar.
+   *
+   * `preferredForceId` picks that force rather than the one the tile is drawing, for a caller that already knows which it wants. Ignored when the force is not
+   * on the tile, which then selects as a plain click would.
+   */
   const selectForceFromTile = useCallback(
-    (t: TileCell) => {
+    (t: TileCell, preferredForceId?: number) => {
       if (playerId == null) return;
 
       // Only the player's own forces are ever selectable, so an enemy or ally sharing the tile is drawn on the
@@ -417,7 +422,8 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
       if (ownedForces.length > 0) {
         // The force the tile is already drawing (or the strongest, when nothing is pinned). With a lone force that is
         // simply that force, so one branch covers both the single- and multi-force tile.
-        const displayedOwnedForce = getVisibleForceForTile(t, { forces: ownedForces }) ?? ownedForces[0];
+        const displayedOwnedForce =
+          ownedForces.find((force) => force.id === preferredForceId) ?? getVisibleForceForTile(t, { forces: ownedForces }) ?? ownedForces[0];
 
         setSelectedForces([displayedOwnedForce]);
         setVisibleForceIdsByTile((current) => ({

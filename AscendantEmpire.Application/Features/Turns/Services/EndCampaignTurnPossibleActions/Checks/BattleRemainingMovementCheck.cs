@@ -24,7 +24,6 @@ internal sealed class BattleRemainingMovementCheck(
         await using AscendantEmpireContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
         var idleBattleForces = await db.UnitInstances
-            .Include(t => t.CampaignMap)
             .Where(t => t.GameId == actionContext.GameId)
             .Where(t => t.PlayerId == actionContext.PlayerId)
             .Where(t => t.BattleMapTileId != null)
@@ -34,22 +33,26 @@ internal sealed class BattleRemainingMovementCheck(
             // TODO: Nothing spends or replenishes BattleMovementRemaining yet — it is granted once, when the Unit is fielded.
             //       Until the battle turn pipeline exists to refresh it, this check reports every Force standing on a Battle Map as still having movement, for as long as the Battle lasts.
             .Where(t => t.BattleMovementRemaining >= ScaledAmount.Scale)
-            .Select(t => new 
-            { 
-                t.Id, 
-                t.Name,
+            .Select(t => new
+            {
+                t.Id,
+                t.UnitTemplateId,
+                TemplateName = t.UnitTemplate.Compiled!.DisplayName,
+                t.BattleMovementRemaining,
+                t.UnitTemplate.Compiled!.BattlefieldMovementPoints,
                 Coord = new Coord(t.CampaignMap.XCoord, t.CampaignMap.YCoord),
             })
             .ToListAsync(cancellationToken);
 
         return [.. idleBattleForces.Select(t =>
-            new PossibleAction 
+            new PossibleAction
             {
                 Category = InformationCategory.Military,
-                Description = $"{(string.IsNullOrWhiteSpace(t.Name) ? "Unnamed" : t.Name)} has movement remaining.",
+                Description = ForceMovementDescription.Describe(t.TemplateName, t.BattleMovementRemaining, t.BattlefieldMovementPoints),
                 Id = t.Id,
                 Coord = t.Coord,
-                RecordTypeId = (int)RecordType.Unit // TODO: Determine whether this is a Unit or a Command
+                RecordTypeId = (int)RecordType.Unit, // TODO: Determine whether this is a Unit or a Command
+                UnitTemplateId = t.UnitTemplateId
             })];
     }
 }

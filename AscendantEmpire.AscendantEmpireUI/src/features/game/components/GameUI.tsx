@@ -471,6 +471,20 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     [openToast],
   );
 
+  // Selects the notified force on its tile, exactly as clicking that force in the selection bar would after clicking the tile.
+  const selectNotifiedForce = useCallback(
+    (x: number, y: number, forceId: number) => {
+      const cell = tiles2d?.[y]?.[x];
+      if (cell == null) {
+        return;
+      }
+
+      selectForceFromTile(cell, forceId);
+      setInspectedTileCoords({ x, y });
+    },
+    [tiles2d, selectForceFromTile],
+  );
+
   // --- Tile click: vision + force selection + tile toolbar ---
   const onTileClick = useCallback(
     (t: TileCell) => {
@@ -594,7 +608,8 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     <NotificationsProvider
       endTurnActions={endTurnActions}
       sightingReports={sightingReports ?? NO_SIGHTING_REPORTS}
-      sightingDescriptionContext={sightingDescriptionContext}>
+      sightingDescriptionContext={sightingDescriptionContext}
+      unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}>
       <div className="flex flex-col" style={{ minHeight: "100vh", paddingRight: notificationPanelOpen ? "20vw" : undefined }}>
         <div ref={toolbarRef} className="fixed left-0 right-0 z-[1070]" style={{ top: topOffset }}>
           <ToolBar
@@ -617,6 +632,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
             toolbarBottomPx={toolbarBottomPx}
             onPanTo={panMapTo}
             onOpenDialog={openNotificationDialog}
+            onSelectForce={selectNotifiedForce}
             onPanelOpenChange={setNotificationPanelOpen}
           />
         )}

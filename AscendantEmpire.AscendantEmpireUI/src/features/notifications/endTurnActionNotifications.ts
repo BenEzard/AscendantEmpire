@@ -38,21 +38,34 @@ function groupTypeFor(action: PossibleAction): NotificationGroupType {
  * What clicking an item does, beyond panning to its tile.
  *
  * Research is the only group with a screen to open: it is an empire-wide decision with no tile to pan to, so without a
- * dialog the item would do nothing at all when clicked. The others are handled on the map — a Force is given its orders
- * where it stands — so they carry no action, and will gain one when their screens exist.
+ * dialog the item would do nothing at all when clicked. A Force is given its orders where it stands, so its item selects
+ * it there. The rest carry no action, and will gain one when their screens exist.
  */
-function actionFor(groupType: NotificationGroupType): NotificationItemAction {
+function actionFor(groupType: NotificationGroupType, action: PossibleAction): NotificationItemAction {
   if (groupType === "research-selection") {
     return { kind: "open-dialog", dialog: "research" };
+  }
+
+  if (groupType === "unit-needs-orders") {
+    return { kind: "select-force", forceId: action.id };
   }
 
   return { kind: "none" };
 }
 
-function iconFor(groupType: NotificationGroupType): { iconSrc: string; iconAlt: string } {
+function iconFor(
+  groupType: NotificationGroupType,
+  action: PossibleAction,
+  unitImageSrcByUnitTemplateId: ReadonlyMap<number, string> | undefined,
+): { iconSrc: string; iconAlt: string } {
   switch (groupType) {
-    case "unit-needs-orders":
-      return { iconSrc: unitIconSrc, iconAlt: "Unit" };
+    case "unit-needs-orders": {
+      // The generic soldier stands in until the display lookup arrives, or for a Force the server sent no template for.
+      const templateImageSrc = action.unitTemplateId == null ? undefined : unitImageSrcByUnitTemplateId?.get(action.unitTemplateId);
+      const iconAlt = action.recordTypeId === RECORD_TYPE_COMMAND ? "Command" : "Unit";
+
+      return { iconSrc: templateImageSrc ?? unitIconSrc, iconAlt };
+    }
 
     case "city-under-siege":
       return { iconSrc: SANDSTONE_BLOCK_ICON_SRC, iconAlt: "City" };
@@ -68,12 +81,12 @@ function iconFor(groupType: NotificationGroupType): { iconSrc: string; iconAlt: 
  * The API returns a flat list; the panel shows one group per kind, in a fixed display order. Groups with nothing in them are dropped rather than
  * rendered empty, so a player with only movement left to do sees one group rather than four.
  */
-export function buildEndTurnActionGroups(actions: PossibleAction[]): NotificationGroup[] {
+export function buildEndTurnActionGroups(actions: PossibleAction[], unitImageSrcByUnitTemplateId?: ReadonlyMap<number, string>): NotificationGroup[] {
   const byType = new Map<NotificationGroupType, NotificationItem[]>();
 
   for (const action of actions) {
     const groupType = groupTypeFor(action);
-    const { iconSrc, iconAlt } = iconFor(groupType);
+    const { iconSrc, iconAlt } = iconFor(groupType, action, unitImageSrcByUnitTemplateId);
 
     const item: NotificationItem = {
       // The record id alone is not unique — a Unit and a Structure can share one, and one Force can raise more than one kind of action — so the id
@@ -83,7 +96,7 @@ export function buildEndTurnActionGroups(actions: PossibleAction[]): Notificatio
       iconSrc,
       iconAlt,
       location: action.xCoord != null && action.yCoord != null ? { x: action.xCoord, y: action.yCoord } : undefined,
-      action: actionFor(groupType),
+      action: actionFor(groupType, action),
       isHandled: false,
     };
 

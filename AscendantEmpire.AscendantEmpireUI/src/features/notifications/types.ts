@@ -6,7 +6,7 @@ export interface NotificationGroupTypeMeta {
 }
 
 export const notificationGroupTypeMeta: Record<NotificationGroupType, NotificationGroupTypeMeta> = {
-  "unit-needs-orders": { label: "Unit needs orders", displayOrder: 10 },
+  "unit-needs-orders": { label: "Forces need orders", displayOrder: 10 },
   // Straight after orders: what other players were seen doing is the other thing a player needs before deciding their own moves.
   "sighting-reports": { label: "Sightings", displayOrder: 15 },
   "city-under-siege": { label: "City Under Siege", displayOrder: 20 },
@@ -21,6 +21,8 @@ export interface NotificationLocation {
 
 export type NotificationItemAction =
   | { kind: "open-dialog"; dialog: "unit-orders" | "trade" | "city" | "research"; payload?: unknown }
+  /** Selects the Force on its tile, as if the player had picked it out of the selection bar. */
+  | { kind: "select-force"; forceId: number }
   | { kind: "none" };
 
 export interface NotificationItem {

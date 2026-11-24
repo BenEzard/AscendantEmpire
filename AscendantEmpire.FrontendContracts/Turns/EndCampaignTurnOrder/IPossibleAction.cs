@@ -21,4 +21,9 @@ public interface IPossibleAction
 
     public int Id { get; }
     public int RecordTypeId { get; }
+
+    /// <summary>
+    /// The template the Force concerned was built from, so a client can draw its map image; null for actions about anything other than a Unit.
+    /// </summary>
+    public int? UnitTemplateId { get; }
 }
