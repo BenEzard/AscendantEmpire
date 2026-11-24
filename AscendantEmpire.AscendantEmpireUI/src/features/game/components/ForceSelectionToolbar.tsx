@@ -3,6 +3,7 @@ import Tooltip from "@/components/ui/Tooltip";
 import ObservedForce from "@/features/map/components/ObservedForce";
 import { TILE_SIZE_PX } from "@/features/map/components/TileGrid";
 import type { ObservedForceTile } from "@/features/map/components/TileTypes";
+import { formatMovementPoints } from "../util/formatMovementPoints";
 
 export interface ForceSelectionToolbarTile {
   x: number;
@@ -39,15 +40,6 @@ export interface ForceSelectionToolbarProps {
    * out again" rather than "select only this force".
    */
   onSelect: (force: ObservedForceTile, append: boolean) => void;
-}
-
-/**
- * Formats a movement-point value for display, trimming the trailing zero off whole numbers.
- *
- * Costs are authored to one decimal place (desert's 1.1), so "1.5" and "2" both need to read naturally.
- */
-function formatMovementPoints(points: number): string {
-  return Number.isInteger(points) ? String(points) : points.toFixed(1);
 }
 
 /**

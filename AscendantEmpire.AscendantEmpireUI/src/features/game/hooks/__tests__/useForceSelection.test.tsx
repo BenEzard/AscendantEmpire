@@ -22,18 +22,6 @@ vi.mock("../../api/settleForceApi", async (importOriginal) => ({
   settleForce,
 }));
 
-// A tile holding one takeable resource is taken from the hook itself, so it reads the options and posts the order. Both are
-// mocked, because what is pinned is which of the two paths the button takes and what it sends.
-const { getTakeResourcesOptions, takeResources } = vi.hoisted(() => ({
-  getTakeResourcesOptions: vi.fn(),
-  takeResources: vi.fn(),
-}));
-
-vi.mock("../../api/takeResourcesApi", () => ({
-  getTakeResourcesOptions,
-  takeResources,
-}));
-
 const THIS_PLAYER_ID = 1;
 const OTHER_PLAYER_ID = 2;
 
@@ -706,41 +694,8 @@ describe("useForceSelection", () => {
     });
   });
 
-  /**
-   * Taking resources is the one action that deliberately covers the whole selection: one resource at one rate, so nothing
-   * about the order is per force and there is no single-force guard to trip.
-   *
-   * It is also the only action whose button does not always lead to the same place. A tile holds up to two takeable
-   * resources, and the dialog exists only to choose between them — so with one, the order goes straight out.
-   */
+  /** Taking resources covers the whole selection, and always opens the dialog since it also drops and exchanges cargo. */
   describe("the take resources action", () => {
-    beforeEach(() => {
-      getTakeResourcesOptions.mockReset();
-      takeResources.mockReset();
-    });
-
-    function berryPatch() {
-      return {
-        mapResourceInstanceId: 41,
-        slot: 1,
-        displayName: "Berry Patch",
-        iconPath: null,
-        unitsWouldTake: 1_000,
-        wouldGain: [{ assetId: 7, assetDisplayName: "Berries", amount: 1_000 }],
-      };
-    }
-
-    function deerHerd() {
-      return {
-        mapResourceInstanceId: 42,
-        slot: 2,
-        displayName: "Deer Herd",
-        iconPath: null,
-        unitsWouldTake: 1_000,
-        wouldGain: [{ assetId: 9, assetDisplayName: "Hides", amount: 500 }],
-      };
-    }
-
     /** Selects the given forces, whose only available action is Take Resources, and returns the hook. */
     async function withTakeResources(forces: ObservedForceTile[], openToast = vi.fn()) {
       vi.mocked(getForceContextActions).mockResolvedValue([
@@ -765,96 +720,30 @@ describe("useForceSelection", () => {
       return result;
     }
 
-    it("takes outright when the tile holds one resource, with no dialog", async () => {
-      getTakeResourcesOptions.mockResolvedValue({ resources: [berryPatch()] });
-      takeResources.mockResolvedValue({
-        displayName: "Berry Patch",
-        xCoord: 3,
-        yCoord: 4,
-        unitsTaken: 1_000,
-        isExhausted: false,
-        gained: [{ assetId: 7, assetDisplayName: "Berries", amount: 1_000 }],
-        forces: [{ unitInstanceId: 7, displayName: "Settler", unitsTaken: 1_000 }],
-      });
-
-      const openToast = vi.fn();
-      const result = await withTakeResources([force({ id: 7 })], openToast);
-
-      await act(async () => result.current.contextActionToolbarActions[0].onClick());
-
-      await waitFor(() => expect(takeResources).toHaveBeenCalledWith({ forceIds: [7], mapResourceInstanceId: 41 }));
-
-      expect(result.current.takeResourcesDialogOpen).toBe(false);
-      await waitFor(() => expect(openToast).toHaveBeenCalledWith(expect.stringContaining("Took 1,000 Berries"), "success"));
-    });
-
-    it("opens the dialog when the tile holds two resources, and closes it again", async () => {
-      getTakeResourcesOptions.mockResolvedValue({ resources: [berryPatch(), deerHerd()] });
-
+    it("opens the dialog, and closes it again", async () => {
       const result = await withTakeResources([force({ id: 7 })]);
 
       expect(result.current.takeResourcesDialogOpen).toBe(false);
 
-      await act(async () => result.current.contextActionToolbarActions[0].onClick());
+      act(() => result.current.contextActionToolbarActions[0].onClick());
 
       expect(result.current.takeResourcesDialogOpen).toBe(true);
-      expect(takeResources).not.toHaveBeenCalled();
 
       act(() => result.current.closeTakeResourcesDialog());
 
       expect(result.current.takeResourcesDialogOpen).toBe(false);
     });
 
-    it("takes for a selection of several forces, since they take together", async () => {
-      getTakeResourcesOptions.mockResolvedValue({ resources: [berryPatch()] });
-      takeResources.mockResolvedValue({
-        displayName: "Berry Patch",
-        xCoord: 3,
-        yCoord: 4,
-        unitsTaken: 1_000,
-        isExhausted: false,
-        gained: [],
-        forces: [],
-      });
-
+    it("opens the dialog for a selection of several forces, with no single-force guard", async () => {
       const openToast = vi.fn();
       const result = await withTakeResources([force({ id: 7 }), force({ id: 8 })], openToast);
 
       expect(selectedIds(result)).toEqual([7, 8]);
 
-      await act(async () => result.current.contextActionToolbarActions[0].onClick());
+      act(() => result.current.contextActionToolbarActions[0].onClick());
 
-      await waitFor(() => expect(takeResources).toHaveBeenCalledWith({ forceIds: [7, 8], mapResourceInstanceId: 41 }));
-      expect(openToast).not.toHaveBeenCalledWith(expect.stringContaining("Select a single force"), "info");
-    });
-
-    /** The toolbar judged the tile a moment ago, so an empty answer is the tile having changed since. */
-    it("says so when the tile turns out to hold nothing", async () => {
-      getTakeResourcesOptions.mockResolvedValue({ resources: [] });
-
-      const openToast = vi.fn();
-      const result = await withTakeResources([force({ id: 7 })], openToast);
-
-      await act(async () => result.current.contextActionToolbarActions[0].onClick());
-
-      expect(openToast).toHaveBeenCalledWith("There is nothing left to take here.", "info");
-      expect(result.current.takeResourcesDialogOpen).toBe(false);
-      expect(takeResources).not.toHaveBeenCalled();
-    });
-
-    /** There is no dialog to show an outright take's refusal in, so the server's own wording goes to the toast instead. */
-    it("reports a refused take in a toast", async () => {
-      getTakeResourcesOptions.mockResolvedValue({ resources: [berryPatch()] });
-      takeResources.mockRejectedValue(new Error("There is nothing of that resource left to take here."));
-
-      const openToast = vi.fn();
-      const result = await withTakeResources([force({ id: 7 })], openToast);
-
-      await act(async () => result.current.contextActionToolbarActions[0].onClick());
-
-      await waitFor(() =>
-        expect(openToast).toHaveBeenCalledWith("There is nothing of that resource left to take here.", "danger"),
-      );
+      expect(result.current.takeResourcesDialogOpen).toBe(true);
+      expect(openToast).not.toHaveBeenCalled();
     });
   });
 });

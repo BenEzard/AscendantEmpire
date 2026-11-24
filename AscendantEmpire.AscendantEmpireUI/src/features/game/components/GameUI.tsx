@@ -21,7 +21,7 @@ import SplitForceDialog from "./splitForce/SplitForceDialog";
 import TakeResourcesDialog from "./TakeResourcesDialog";
 import { describeFounding } from "@/features/game/hooks/useSettleForce";
 import { describeSplit } from "@/features/game/hooks/useSplitForce";
-import { describeTake } from "@/features/game/hooks/useTakeResources";
+import { useMockTakeResourcesDialogData } from "@/features/game/hooks/useMockTakeResourcesDialogData";
 import OpenGameDialog from "./OpenGameDialog";
 import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
 import { enterGame } from "@/features/auth/api/authApi";
@@ -257,6 +257,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const { data: unitDisplayLookup } = useUnitDisplayInfoQuery(gameId, gameId != null);
   const unitImageSrcByUnitTemplateId = unitDisplayLookup?.imageSrcByUnitTemplateId;
   const unitNameByUnitTemplateId = unitDisplayLookup?.nameByUnitTemplateId;
+  const takeResourcesData = useMockTakeResourcesDialogData(selectedForces, unitImageSrcByUnitTemplateId, unitNameByUnitTemplateId);
 
   // --- Intelligence: what the player learned while they were not looking ---
   const { data: sightingReports } = useSightingReportsQuery(gameId, playerId, tilesEnabled);
@@ -735,15 +736,17 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
           onSplit={(result) => openToast(describeSplit(result), "success")}
         />
 
-        {/* Opened from the Take Resources button on the context action toolbar. The whole selection takes together, so it is
-            given the selected ids rather than one force — the only choice left is which of the tile's resources. */}
+        {/* Runs on mock data until the backend is rewired (F-40), so Confirm only logs the plan. */}
         <TakeResourcesDialog
           show={takeResourcesDialogOpen}
-          gameId={gameId ?? undefined}
-          playerId={playerId ?? undefined}
-          forceIds={selectedForceIdList}
+          tileAssets={takeResourcesData.tileAssets}
+          forces={takeResourcesData.forces}
           onClose={closeTakeResourcesDialog}
-          onTaken={(result) => openToast(describeTake(result), "success")}
+          onConfirm={(plan) => {
+            console.info("Take Resources plan", plan);
+            openToast("Taking resources is not wired to the server yet.", "info");
+            closeTakeResourcesDialog();
+          }}
         />
 
         {/* The bars stack in one fixed column, so the bottom row sits under the action toolbar without either needing

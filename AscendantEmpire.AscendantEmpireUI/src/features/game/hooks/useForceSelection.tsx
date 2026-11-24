@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import type { ObservedForceTile, TileCell } from "@/features/map/components/TileTypes";
 import type { ForceSelectionToolbarTile } from "../components/ForceSelectionToolbar";
 import type { ContextActionToolbarAction } from "../components/ContextActionToolbar";
@@ -8,7 +7,6 @@ import { useForceContextActionsQuery } from "./useForceContextActions";
 import type { ForceActionType } from "../api/forceContextActionsApi";
 import { isNamedTier, type FoundableSettlementTier } from "../api/settleForceApi";
 import { describeFounding, useSettleForceMutation } from "./useSettleForce";
-import { describeTake, fetchTakeResourcesOptions, useTakeResourcesMutation } from "./useTakeResources";
 import type { MoveDirection, StepForceResponse } from "../api/forceMovementApi";
 import { directionBetween } from "@/features/map/util/mapDirections";
 import type { ToastVariant } from "@/hooks/useToast";
@@ -95,11 +93,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   // confirmation per force, so a multi-force selection is turned away rather than pooled.
   const [splitDialogForceId, setSplitDialogForceId] = useState<number | null>(null);
 
-  // Whether the take-resources dialog is open. A flag rather than an id, because this order covers the whole selection: what
-  // it needs is the selected force ids, which the hook already has, and the one choice left — which of the tile's resources
-  // to take from — is the dialog's own.
-  //
-  // Only ever opened for a tile holding more than one takeable resource; see runForceAction below.
+  // A flag rather than an id, because the dialog covers the whole selection, which the hook already has.
   const [takeResourcesDialogOpen, setTakeResourcesDialogOpen] = useState(false);
 
   // The unnamed tiers found from here rather than through the dialog, so this hook runs the order for them.
@@ -109,17 +103,6 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     // movement left. There is no dialog to show it in, so it goes to the toast.
     onError: (error) =>
       openToast(error instanceof Error ? error.message : "The settlement could not be founded.", "danger"),
-  });
-
-  const queryClient = useQueryClient();
-
-  // A tile holding one takeable resource is taken from this hook rather than through the dialog, so this hook runs that order.
-  const takeResourcesMutation = useTakeResourcesMutation(gameId, playerId, {
-    onSuccess: (result) => openToast(describeTake(result), "success"),
-    // The server's own wording, which is written to be read by the player: the resource is gone, the forces have already
-    // moved. There is no dialog to show it in, so it goes to the toast.
-    onError: (error) =>
-      openToast(error instanceof Error ? error.message : "The resource could not be taken.", "danger"),
   });
 
   // Reset all force-selection state when the game closes.
@@ -145,7 +128,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   /** Closes the split dialog, discarding whatever division was composed in it. */
   const closeSplitDialog = useCallback(() => setSplitDialogForceId(null), []);
 
-  /** Closes the take-resources dialog, discarding whichever resource was picked in it. */
+  /** Closes the take-resources dialog, discarding the moves made in it. */
   const closeTakeResourcesDialog = useCallback(() => setTakeResourcesDialogOpen(false), []);
 
   // Memoised because both the bar and every map tile take it, and Tile is memoised — a fresh Set each render
@@ -332,50 +315,12 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   // several forces selected it judges every one of them: an action is enabled only when all of them can take it.
   const { data: forceContextActions } = useForceContextActionsQuery(selectedForceIdList);
 
-  /**
-   * Starts a take, asking the player which resource only when there is a choice to make.
-   *
-   * A tile holds up to two takeable resources, and the dialog exists for precisely that case: with one, there is nothing to
-   * decide, so the order goes straight out. The options are read first either way, and the dialog that may follow reads the
-   * same cache entry rather than asking again.
-   */
-  const startTakeResources = useCallback(
-    async (forceIds: readonly number[]) => {
-      if (forceIds.length === 0) {
-        return;
-      }
-
-      let resourceCount: number;
-      let onlyResourceId: number | null = null;
-
-      try {
-        const options = await fetchTakeResourcesOptions(queryClient, forceIds);
-
-        resourceCount = options.resources.length;
-        onlyResourceId = resourceCount === 1 ? options.resources[0].mapResourceInstanceId : null;
-      } catch (error) {
-        openToast(error instanceof Error ? error.message : "What is here could not be read.", "danger");
-
-        return;
-      }
-
-      // The toolbar judged the tile a moment ago, so this is the tile having changed since — someone else took the last of it.
-      if (resourceCount === 0) {
-        openToast("There is nothing left to take here.", "info");
-
-        return;
-      }
-
-      if (onlyResourceId != null) {
-        takeResourcesMutation.mutate({ forceIds: [...forceIds], mapResourceInstanceId: onlyResourceId });
-
-        return;
-      }
-
+  /** Always opens the dialog: the one action covers taking, dropping and exchanging, so there is no case with nothing to decide. */
+  const startTakeResources = useCallback((forceIds: readonly number[]) => {
+    if (forceIds.length > 0) {
       setTakeResourcesDialogOpen(true);
-    },
-    [openToast, queryClient, takeResourcesMutation],
-  );
+    }
+  }, []);
 
   /**
    * Starts the interaction behind a backend-driven action.
@@ -438,7 +383,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
         // asked at all — which means reading the options before anything is shown. Awaited inside, not awaited by the caller:
         // the toolbar's click handler is synchronous, and the outcome arrives as a dialog or a toast either way.
         case "TakeResources":
-          void startTakeResources(selectedForceIdList);
+          startTakeResources(selectedForceIdList);
           break;
       }
     },

@@ -1,178 +1,179 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import TakeResourcesDialog from "../TakeResourcesDialog";
-import type { TakeResourcesOption, TakeResourcesResult } from "@/features/game/api/takeResourcesApi";
+import type { AssetStack, TakeResourcesForce, TileAssetStack } from "../takeResourcesCargo";
 
-// The API is mocked rather than the hooks, so what is pinned is the request the dialog actually sends — the resource id
-// especially, since that is the whole of what the player chooses here.
-const { getTakeResourcesOptions, takeResources } = vi.hoisted(() => ({
-  getTakeResourcesOptions: vi.fn(),
-  takeResources: vi.fn(),
-}));
+const BERRIES: AssetStack = { assetId: 1, displayName: "Berries", iconPath: "", quantity: 0 };
+const FISH: AssetStack = { assetId: 2, displayName: "Fish", iconPath: "", quantity: 0 };
 
-vi.mock("@/features/game/api/takeResourcesApi", () => ({
-  getTakeResourcesOptions,
-  takeResources,
-}));
+const TILE_ASSETS: TileAssetStack[] = [
+  { ...BERRIES, quantity: 7000, isEstimate: true },
+  { ...FISH, quantity: 40, isEstimate: false },
+];
 
-function berries(overrides: Partial<TakeResourcesOption> = {}): TakeResourcesOption {
+function force(overrides: Partial<TakeResourcesForce> = {}): TakeResourcesForce {
   return {
-    mapResourceInstanceId: 41,
-    slot: 0,
-    displayName: "Berry Patch",
-    iconPath: "/map-resources/berries.png",
-    unitsWouldTake: 1_000,
-    wouldGain: [{ assetId: 7, assetDisplayName: "Berries", amount: 1_000 }],
+    forceId: 1,
+    displayName: "Spearmen",
+    imageSrc: undefined,
+    healthyIndividuals: 40,
+    injuredIndividuals: 0,
+    initialStrength: 40,
+    movementRemaining: 3,
+    movementPoints: 3,
+    turnRemaining: 1,
+    capacity: 200,
+    carrying: [],
     ...overrides,
   };
 }
 
-function deer(overrides: Partial<TakeResourcesOption> = {}): TakeResourcesOption {
-  return {
-    mapResourceInstanceId: 42,
-    slot: 1,
-    displayName: "Deer Herd",
-    iconPath: null,
-    unitsWouldTake: 500,
-    wouldGain: [{ assetId: 9, assetDisplayName: "Hides", amount: 250 }],
-    ...overrides,
-  };
+function renderDialog(forces: TakeResourcesForce[], onConfirm = vi.fn()) {
+  render(<TakeResourcesDialog show tileAssets={TILE_ASSETS} forces={forces} onClose={vi.fn()} onConfirm={onConfirm} />);
+
+  return onConfirm;
 }
 
-function result(overrides: Partial<TakeResourcesResult> = {}): TakeResourcesResult {
-  return {
-    displayName: "Berry Patch",
-    xCoord: 3,
-    yCoord: 4,
-    unitsTaken: 1_000,
-    isExhausted: false,
-    gained: [{ assetId: 7, assetDisplayName: "Berries", amount: 1_000 }],
-    forces: [{ unitInstanceId: 5, displayName: "Settler", unitsTaken: 1_000 }],
-    ...overrides,
-  };
+function drag(asset: HTMLElement, target: HTMLElement) {
+  fireEvent.dragStart(asset);
+  fireEvent.dragOver(target);
+  fireEvent.drop(target);
+  fireEvent.dragEnd(asset);
 }
 
-function renderDialog(props: Partial<React.ComponentProps<typeof TakeResourcesDialog>> = {}) {
-  // Retries off: a test that asserts on a refusal would otherwise wait for react-query to try again first.
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-
-  const onClose = vi.fn();
-  const onTaken = vi.fn();
-
-  render(
-    <QueryClientProvider client={queryClient}>
-      <TakeResourcesDialog show gameId={1} playerId={2} forceIds={[5]} onClose={onClose} onTaken={onTaken} {...props} />
-    </QueryClientProvider>,
-  );
-
-  return { onClose, onTaken };
-}
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  getTakeResourcesOptions.mockResolvedValue({ resources: [berries()] });
-  takeResources.mockResolvedValue(result());
-});
+const availablePanel = () => screen.getByRole("group", { name: "Available" });
+const forcePanel = (name: string) => screen.getByRole("group", { name });
 
 describe("TakeResourcesDialog", () => {
-  it("lists what the tile holds and what each one gives", async () => {
-    getTakeResourcesOptions.mockResolvedValue({ resources: [berries(), deer()] });
+  it("shows the tile's Assets with estimates marked", () => {
+    renderDialog([force()]);
 
-    renderDialog();
-
-    expect(await screen.findByText("Berry Patch")).toBeInTheDocument();
-    expect(screen.getByText("Gain Berries")).toBeInTheDocument();
-    expect(screen.getByText("Gain Hides")).toBeInTheDocument();
+    expect(within(availablePanel()).getByText("~7000")).toBeInTheDocument();
+    expect(within(availablePanel()).getByText("40")).toBeInTheDocument();
+    expect(screen.getByText("Drop")).toBeInTheDocument();
   });
 
-  /**
-   * The dialog is for choosing between resources, and the amount is the same arithmetic whichever is picked — so it says
-   * nothing about the choice, and a figure shown before the order is one the dwindling patch may not honour.
-   */
-  it("says nothing about how much would be taken", async () => {
-    getTakeResourcesOptions.mockResolvedValue({ resources: [berries(), deer()] });
+  it("draws each Force's health above it, split into healthy, injured and lost", () => {
+    renderDialog([force({ healthyIndividuals: 20, injuredIndividuals: 10, initialStrength: 40 })]);
 
-    renderDialog();
+    const panel = forcePanel("Spearmen");
 
-    await screen.findByText("Berry Patch");
-
-    expect(screen.queryByText(/1,000/)).not.toBeInTheDocument();
+    expect(panel.querySelector(".observed-force__health-fill--healthy")).toHaveStyle({ width: "50%" });
+    expect(panel.querySelector(".observed-force__health-fill--injured")).toHaveStyle({ width: "25%" });
+    expect(panel.querySelector(".observed-force__health-fill--dead")).toHaveStyle({ width: "25%" });
   });
 
-  it("asks about the whole selection, since one order covers every selected force", async () => {
-    renderDialog({ forceIds: [5, 9] });
+  it("reads out each Force's health and movement beside it", () => {
+    renderDialog([force({ healthyIndividuals: 20, injuredIndividuals: 10, movementRemaining: 1.5, movementPoints: 3 })]);
 
-    await waitFor(() => expect(getTakeResourcesOptions).toHaveBeenCalledWith([5, 9]));
+    expect(within(forcePanel("Spearmen")).getByText("Troops: 20 / 10")).toBeInTheDocument();
+    expect(within(forcePanel("Spearmen")).getByText("Movement: 1.5 / 3")).toBeInTheDocument();
   });
 
-  /**
-   * The dialog is only opened for a tile holding two, so one coming back means the tile changed since — and a lone row the
-   * player still has to click would be a step that chooses nothing.
-   */
-  it("preselects a resource that turns out to be the only one left", async () => {
-    renderDialog();
+  it("loads a Force with as much as it can carry and lowers what is available", () => {
+    renderDialog([force()]);
 
-    expect(await screen.findByRole("radio", { name: "Berry Patch" })).toBeChecked();
+    drag(within(availablePanel()).getByLabelText("Berries"), forcePanel("Spearmen"));
+
+    expect(screen.getByLabelText("Berries carried by Spearmen")).toHaveValue(200);
+    expect(within(availablePanel()).getByText("~6800")).toBeInTheDocument();
+    expect(within(forcePanel("Spearmen")).getByText("Uses its turn")).toBeInTheDocument();
   });
 
-  it("sends the resource the player picked", async () => {
-    getTakeResourcesOptions.mockResolvedValue({ resources: [berries(), deer()] });
+  it("returns cargo dragged onto Drop to the available Assets", () => {
+    renderDialog([force({ carrying: [{ ...FISH, quantity: 10 }] })]);
 
-    const { onTaken } = renderDialog();
+    drag(within(forcePanel("Spearmen")).getByLabelText("Fish"), screen.getByTestId("drop-zone"));
 
-    await userEvent.click(await screen.findByRole("radio", { name: "Deer Herd" }));
-    await userEvent.click(screen.getByRole("button", { name: "Take" }));
-
-    await waitFor(() => expect(takeResources).toHaveBeenCalledWith({ forceIds: [5], mapResourceInstanceId: 42 }));
-    expect(onTaken).toHaveBeenCalled();
+    expect(within(availablePanel()).getByText("50")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Fish carried by Spearmen")).not.toBeInTheDocument();
   });
 
-  /** Two resources is the one case the dialog exists for, so neither may be chosen for the player. */
-  it("confirms nothing until a resource is chosen when the tile holds two", async () => {
-    getTakeResourcesOptions.mockResolvedValue({ resources: [berries(), deer()] });
+  it("treats a drop anywhere on the Available panel as a Drop", () => {
+    renderDialog([force({ carrying: [{ ...FISH, quantity: 10 }] })]);
 
-    renderDialog();
+    drag(within(forcePanel("Spearmen")).getByLabelText("Fish"), availablePanel());
 
-    await screen.findByText("Deer Herd");
-
-    expect(screen.getByRole("button", { name: "Take" })).toBeDisabled();
+    expect(within(availablePanel()).getByText("50")).toBeInTheDocument();
   });
 
-  it("closes once the take has happened", async () => {
-    const { onClose, onTaken } = renderDialog();
+  it("moves cargo between Forces", () => {
+    renderDialog([force({ carrying: [{ ...FISH, quantity: 10 }] }), force({ forceId: 2, displayName: "Bowmen" })]);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Take" }));
+    drag(within(forcePanel("Spearmen")).getByLabelText("Fish"), forcePanel("Bowmen"));
 
-    await waitFor(() => expect(onTaken).toHaveBeenCalledWith(result()));
-    expect(onClose).toHaveBeenCalled();
+    expect(screen.getByLabelText("Fish carried by Bowmen")).toHaveValue(10);
+    expect(screen.queryByLabelText("Fish carried by Spearmen")).not.toBeInTheDocument();
   });
 
-  /** Every refusal here is written to be read by the player, so it is shown as it stands rather than reworded. */
-  it("shows the server's refusal as it stands", async () => {
-    takeResources.mockRejectedValue(new Error("There is nothing of that resource left to take here."));
+  it("puts back the difference when a carried quantity is lowered", async () => {
+    renderDialog([force()]);
+    drag(within(availablePanel()).getByLabelText("Berries"), forcePanel("Spearmen"));
 
-    const { onClose } = renderDialog();
+    const field = screen.getByLabelText("Berries carried by Spearmen");
+    await userEvent.clear(field);
+    await userEvent.type(field, "150{Enter}");
 
-    await userEvent.click(await screen.findByRole("button", { name: "Take" }));
-
-    expect(await screen.findByText("There is nothing of that resource left to take here.")).toBeInTheDocument();
-    expect(onClose).not.toHaveBeenCalled();
+    expect(field).toHaveValue(150);
+    expect(within(availablePanel()).getByText("~6850")).toBeInTheDocument();
   });
 
-  it("says so when the tile turns out to hold nothing takeable", async () => {
-    getTakeResourcesOptions.mockResolvedValue({ resources: [] });
+  it("will not raise a carried quantity", async () => {
+    renderDialog([force({ carrying: [{ ...FISH, quantity: 10 }] })]);
 
-    renderDialog();
+    const field = screen.getByLabelText("Fish carried by Spearmen");
+    await userEvent.clear(field);
+    await userEvent.type(field, "99{Enter}");
 
-    expect(await screen.findByText("There is nothing left to take here.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Take" })).toBeDisabled();
+    expect(field).toHaveValue(10);
   });
 
-  it("asks nothing while it is closed", () => {
-    renderDialog({ show: false });
+  it("greys out a Force with no turn left and offers it no slot to load", () => {
+    renderDialog([force({ turnRemaining: 0 })]);
 
-    expect(getTakeResourcesOptions).not.toHaveBeenCalled();
+    expect(forcePanel("Spearmen")).toHaveClass("grayscale");
+    expect(within(forcePanel("Spearmen")).getByText("No turns remaining")).toBeInTheDocument();
+    expect(screen.queryByTestId("cargo-placeholder")).not.toBeInTheDocument();
+
+    drag(within(availablePanel()).getByLabelText("Berries"), forcePanel("Spearmen"));
+
+    expect(screen.queryByLabelText("Berries carried by Spearmen")).not.toBeInTheDocument();
+  });
+
+  it("offers a slot to load only while the Force has room", () => {
+    renderDialog([force({ capacity: 10, carrying: [{ ...FISH, quantity: 10 }] })]);
+
+    expect(screen.queryByTestId("cargo-placeholder")).not.toBeInTheDocument();
+  });
+
+  it("puts everything back as it was when the dialog opened on Reset", async () => {
+    renderDialog([force({ carrying: [{ ...FISH, quantity: 10 }] })]);
+    const reset = screen.getByRole("button", { name: "Reset" });
+
+    expect(reset).toBeDisabled();
+
+    drag(within(availablePanel()).getByLabelText("Berries"), forcePanel("Spearmen"));
+    await userEvent.click(reset);
+
+    expect(screen.queryByLabelText("Berries carried by Spearmen")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Fish carried by Spearmen")).toHaveValue(10);
+    expect(within(availablePanel()).getByText("~7000")).toBeInTheDocument();
+    expect(reset).toBeDisabled();
+  });
+
+  it("enables Confirm once something moves and hands back the plan", async () => {
+    const onConfirm = renderDialog([force()]);
+    const confirm = screen.getByRole("button", { name: "Confirm" });
+
+    expect(confirm).toBeDisabled();
+
+    drag(within(availablePanel()).getByLabelText("Fish"), forcePanel("Spearmen"));
+    await userEvent.click(confirm);
+
+    expect(onConfirm).toHaveBeenCalledWith({
+      available: [{ ...BERRIES, quantity: 7000, isEstimate: true }],
+      forces: [{ forceId: 1, carrying: [{ ...FISH, quantity: 40 }], spendsTurn: true }],
+    });
   });
 });
