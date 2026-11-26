@@ -7,10 +7,11 @@ public class AscendantEmpireContextFactory : IDesignTimeDbContextFactory<Ascenda
 {
     public AscendantEmpireContext CreateDbContext(string[] args)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<AscendantEmpireContext>();
+        string connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__AscendantEmpireDatabase")
+            ?? "Server=CoreOS\\SQLExpress;Database=AscendantEmpire;Trusted_Connection=True;TrustServerCertificate=True;";
 
-        // Use your real connection string here
-        optionsBuilder.UseSqlServer("Server=CoreOS\\SQLExpress;Database=AscendantEmpire;Trusted_Connection=True;TrustServerCertificate=True;");
+        DbContextOptionsBuilder<AscendantEmpireContext> optionsBuilder = new();
+        optionsBuilder.UseSqlServer(connectionString);
 
         return new AscendantEmpireContext(optionsBuilder.Options);
     }
