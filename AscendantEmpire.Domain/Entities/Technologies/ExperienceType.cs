@@ -17,8 +17,8 @@ namespace AscendantEmpire.Domain.Entities.Technologies;
 /// Technology side never learns what a biome is, and "Exploration" gets a home despite owning no row of its own.
 /// </para>
 /// <para>
-/// <b>Nothing writes experience yet.</b> Movement, exploration, extraction, refining, manufacture and husbandry all have to call the allocator, and most of
-/// those systems are not built, so this catalogue is authored ahead of its producers.
+/// <b>Exploration, movement and settling are the only producers so far.</b> Extraction, refining, manufacture and husbandry each have to call the allocator
+/// when they are built, so the rest of this catalogue is authored ahead of them.
 /// </para>
 /// </remarks>
 public sealed class ExperienceType

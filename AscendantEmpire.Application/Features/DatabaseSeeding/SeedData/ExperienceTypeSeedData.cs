@@ -18,9 +18,9 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 /// units and equipment, and <b>Husbandry</b> by keeping animals. <b>Exploration</b> stands alone: it is earned by uncovering terrain and belongs to no family.
 /// </para>
 /// <para>
-/// <b>Nothing writes any of these yet.</b> Movement, exploration, extraction, refining, manufacture and husbandry all have to call the experience allocator,
-/// and most of those systems are not built - so this catalogue is deliberately authored ahead of its producers, and the experience bucket stays empty in play
-/// until they land.
+/// <b>Exploration and the Biome types have producers; the rest do not yet.</b> The map read earns Exploration, and movement and settling earn a Biome type.
+/// Extraction, refining, manufacture and husbandry each have to call the experience allocator when they are built, so those families are deliberately
+/// authored ahead of their producers. A code here must match what <c>ExperienceTypeCodes</c> produces - the allocator refuses a batch it cannot resolve.
 /// </para>
 /// <para>
 /// SortOrder is left unset throughout and derived from list position, spaced by 10, so the order things appear in this file is the order they appear in game

@@ -80,6 +80,8 @@ public class TurnPipelineExecutionOrderTests
             Substitute.For<IPlayerTechnologyAvailabilityService>(),
             Substitute.For<IPlayerTechnologySustenanceModifierService>(),
             Substitute.For<IPlayerTechnologyExtractionEfficiencyService>(),
+            Substitute.For<IExperienceAllocator>(),
+            Substitute.For<IExperienceAccrualReader>(),
             NullLogger<ApplyResearch>.Instance),
         new RaiseSightingReports(
             Substitute.For<IForceSightingFoldService>(),

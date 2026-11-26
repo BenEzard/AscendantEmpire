@@ -4,7 +4,10 @@ using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Technologies;
+using AscendantEmpire.Domain.Entities.Units;
+using AscendantEmpire.Domain.Enums.Forces;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Modifiers;
 using AscendantEmpire.Domain.Enums.Technologies;
@@ -44,6 +47,12 @@ internal class ApplyResearchTests : InMemoryTestBase
     /// <summary>A Technology gated behind <see cref="_PROJECT_ID"/>, so the discovery cascade has somewhere to land.</summary>
     private const int _DEPENDENT_ID = 2;
 
+    /// <summary>The one kind of experience the drain tests accrue, linked to whichever Technologies a test says consume it.</summary>
+    private const int _EXPERIENCE_TYPE_ID = 11;
+
+    /// <summary>The code the derived movement rule earns against, so a tile step can be followed all the way into a bucket.</summary>
+    private const string _JUNGLE_CODE = "Biome.Jungle";
+
     private ApplyResearch _process = null!;
 
     [SetUp]
@@ -54,6 +63,8 @@ internal class ApplyResearchTests : InMemoryTestBase
             new PlayerTechnologyAvailabilityService(NullLogger<PlayerTechnologyAvailabilityService>.Instance),
             new PlayerTechnologySustenanceModifierService(NullLogger<PlayerTechnologySustenanceModifierService>.Instance),
             new PlayerTechnologyExtractionEfficiencyService(NullLogger<PlayerTechnologyExtractionEfficiencyService>.Instance),
+            new ExperienceAllocator(NullLogger<ExperienceAllocator>.Instance),
+            new ExperienceAccrualReader(NullLogger<ExperienceAccrualReader>.Instance),
             NullLogger<ApplyResearch>.Instance);
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
@@ -72,6 +83,8 @@ internal class ApplyResearchTests : InMemoryTestBase
 
         await context.SaveChangesAsync();
     }
+
+    #region Directed spend
 
     [Test, Description("The Turn's whole pool goes into the project when the project can take it, which is the ordinary case the whole feature exists for.")]
     public async Task ShouldSpendTheWholePoolOnTheProjectAsync()
@@ -312,7 +325,7 @@ internal class ApplyResearchTests : InMemoryTestBase
         await _process.ProcessAsync(EndTurnContext());
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
-        List<ResearchHistory> rows = await context.ResearchHistories.ToListAsync();
+        List<ResearchHistory> rows = await context.ResearchHistories.Where(row => row.Bucket == ResearchBucket.Directed).ToListAsync();
 
         using (Assert.EnterMultipleScope())
         {
@@ -357,7 +370,7 @@ internal class ApplyResearchTests : InMemoryTestBase
         PlayerTechnology project = await ReloadProjectAsync();
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
-        int historyCount = await context.ResearchHistories.CountAsync();
+        int historyCount = await context.ResearchHistories.CountAsync(row => row.Bucket == ResearchBucket.Directed);
 
         using (Assert.EnterMultipleScope())
         {
@@ -433,7 +446,224 @@ internal class ApplyResearchTests : InMemoryTestBase
         Assert.That(error, Is.Not.Empty);
     }
 
-    // ── arrangement ───────────────────────────────────────────────────────────
+    #endregion
+
+    #region Experience drain
+
+    [Test, Description("The drain runs before the directed spend, so points the Player earned fill the experience bucket instead of being made redundant by directed spill and thrown away.")]
+    public async Task ShouldDistributeExperienceBeforeSpendingDirectedPointsAsync()
+    {
+        await AddProjectAsync(directedRequired: 100, experienceRequired: 50);
+        await AddExperienceTypeAsync();
+        await LinkExperienceTypeAsync(_PROJECT_ID);
+        await AddAccrualAsync(50);
+        await AddResearchStateAsync(unspentDirectedPoints: 150, currentTechnologyId: _PROJECT_ID);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        PlayerTechnology project = await ReloadProjectAsync();
+        ResearchHistory directed = await ReloadHistoryAsync();
+        List<PlayerUnusedExperience> unused = await ReloadUnusedAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(project.ExperiencePoints, Is.EqualTo(50));
+            Assert.That(directed.Spent, Is.EqualTo(100), "The experience bucket was already full, so directed points had only their own bucket to fill.");
+            Assert.That(directed.Lost, Is.EqualTo(50));
+            Assert.That(unused, Is.Empty, "Had the spend run first it would have filled the experience bucket by spill and left these points nowhere to go.");
+        }
+    }
+
+    [Test, Description("A Technology finished by the drain alone is stamped as discovered by experience, so the Player can tell what completed it.")]
+    public async Task ShouldRecordExperienceAsTheDiscoveryMethodWhenTheDrainFillsTheLastBucketAsync()
+    {
+        await AddProjectAsync(directedRequired: null, experienceRequired: 50);
+        await AddExperienceTypeAsync();
+        await LinkExperienceTypeAsync(_PROJECT_ID);
+        await AddAccrualAsync(50);
+        await AddResearchStateAsync(unspentDirectedPoints: 0, currentTechnologyId: null);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        PlayerTechnology project = await ReloadProjectAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(project.Status, Is.EqualTo(TechnologyStatus.Discovered));
+            Assert.That(project.DiscoveryMethod, Is.EqualTo(TechnologyDiscoveryMethod.Experience));
+            Assert.That(project.DiscoveredOnRound, Is.EqualTo(_CURRENT_ROUND_NUMBER));
+        }
+    }
+
+    [Test, Description("A discovery made by the drain cascades and grants exactly as a directed one does, because the reconcilers run on the discovery rather than on the bucket that paid for it.")]
+    public async Task ShouldReconcileGrantsWhenTheDrainDiscoversATechnologyAsync()
+    {
+        await AddSustenanceModifierGrantAsync();
+        await AddProjectAsync(directedRequired: null, experienceRequired: 50);
+        await AddExperienceTypeAsync();
+        await LinkExperienceTypeAsync(_PROJECT_ID);
+        await AddAccrualAsync(50);
+        await AddResearchStateAsync(unspentDirectedPoints: 0, currentTechnologyId: null);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        PlayerTechnology dependent = await ReloadDependentAsync();
+        List<PlayerSustenanceModifier> modifiers = await ReloadModifiersAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dependent.Status, Is.EqualTo(TechnologyStatus.Available));
+            Assert.That(modifiers, Has.Count.EqualTo(1));
+        }
+    }
+
+    [Test, Description("The recipients are settled once, before anything is distributed, so a Technology that only became available during this drain waits until next Round rather than changing the divisor mid-split.")]
+    public async Task ShouldNotFeedNewlyAvailableDependentsInTheSameRoundAsync()
+    {
+        await AddProjectAsync(directedRequired: null, experienceRequired: 50);
+        await AddExperienceTypeAsync();
+        await LinkExperienceTypeAsync(_PROJECT_ID);
+        await LinkExperienceTypeAsync(_DEPENDENT_ID);
+        await GiveDependentAnExperienceBucketAsync();
+        await AddAccrualAsync(80);
+        await AddResearchStateAsync(unspentDirectedPoints: 0, currentTechnologyId: null);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        PlayerTechnology project = await ReloadProjectAsync();
+        PlayerTechnology dependent = await ReloadDependentAsync();
+        List<PlayerUnusedExperience> unused = await ReloadUnusedAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(project.ExperiencePoints, Is.EqualTo(50));
+            Assert.That(dependent.Status, Is.EqualTo(TechnologyStatus.Available), "The cascade still ran.");
+            Assert.That(dependent.ExperiencePoints, Is.Zero);
+            Assert.That(unused, Has.Count.EqualTo(1));
+            Assert.That(unused[0].Points, Is.EqualTo(30), "The surplus from clamping the project is wasted rather than handed to the dependent.");
+        }
+    }
+
+    [Test, Description("What the Player's Forces did this Turn reaches their Technologies in the same Turn, which is the whole point of deriving the movement and settling rules at the end of one.")]
+    public async Task ShouldDistributeExperienceDerivedFromThisTurnsMovementAsync()
+    {
+        await AddProjectAsync(directedRequired: null, experienceRequired: 50);
+        await AddExperienceTypeAsync(code: _JUNGLE_CODE);
+        await LinkExperienceTypeAsync(_PROJECT_ID);
+        await AddJungleTileSteppedOnThisTurnAsync();
+        await AddResearchStateAsync(unspentDirectedPoints: 0, currentTechnologyId: null);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        PlayerTechnology project = await ReloadProjectAsync();
+        ResearchHistory experience = await ReloadHistoryAsync(ResearchBucket.Experience);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(project.ExperiencePoints, Is.EqualTo(1), "One unimproved tile of jungle, earned and spent inside one end of Turn.");
+            Assert.That(experience.Generated, Is.EqualTo(1));
+        }
+    }
+
+    [Test, Description("A Technology whose experience bucket is already full is not a recipient at all, so it does not halve the share of the one that can still use the points.")]
+    public async Task ShouldNotCountASpentTechnologyAsARecipientAsync()
+    {
+        await AddProjectAsync(directedRequired: null, experienceRequired: 500);
+        await AddExperienceTypeAsync();
+        await LinkExperienceTypeAsync(_PROJECT_ID);
+        await LinkExperienceTypeAsync(_DEPENDENT_ID);
+        await MakeDependentASpentRecipientAsync();
+        await AddAccrualAsync(10);
+        await AddResearchStateAsync(unspentDirectedPoints: 0, currentTechnologyId: null);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        PlayerTechnology project = await ReloadProjectAsync();
+        List<PlayerUnusedExperience> unused = await ReloadUnusedAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(project.ExperiencePoints, Is.EqualTo(10), "The only Technology that could use the points took all of them.");
+            Assert.That(unused, Is.Empty, "Nothing was wasted on a divisor that could absorb nothing.");
+        }
+    }
+
+    [Test, Description("Experience gets its own history row every Round even when nothing was earned, so a Round of no progress reads as a zero rather than as missing data.")]
+    public async Task ShouldWriteAZeroExperienceHistoryRowWhenNothingWasAccruedAsync()
+    {
+        await AddProjectAsync(directedRequired: 500);
+        await AddResearchStateAsync(unspentDirectedPoints: 100, currentTechnologyId: _PROJECT_ID);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        ResearchHistory experience = await ReloadHistoryAsync(ResearchBucket.Experience);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(experience.Bucket, Is.EqualTo(ResearchBucket.Experience));
+            Assert.That(experience.PlayerTurnId, Is.EqualTo(_PLAYER_TURN_ID));
+            Assert.That(experience.RoundNumber, Is.EqualTo(_CURRENT_ROUND_NUMBER));
+            Assert.That(experience.Generated, Is.Zero);
+            Assert.That(experience.Spent, Is.Zero);
+            Assert.That(experience.Lost, Is.Zero);
+        }
+    }
+
+    [Test, Description("Points that no Technology of the Player's consumes are banked as unused and the accrual is still emptied, so nothing is distributed twice next Round.")]
+    public async Task ShouldSendPointsToUnusedWhenNoTechnologyConsumesTheTypeAsync()
+    {
+        await AddProjectAsync(directedRequired: 500);
+        await AddExperienceTypeAsync();
+        await AddAccrualAsync(40);
+        await AddResearchStateAsync(unspentDirectedPoints: 0, currentTechnologyId: null);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        List<PlayerUnusedExperience> unused = await ReloadUnusedAsync();
+        List<PendingExperienceAccrual> accruals = await ReloadAccrualsAsync();
+        ResearchHistory experience = await ReloadHistoryAsync(ResearchBucket.Experience);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(unused, Has.Count.EqualTo(1));
+            Assert.That(unused[0].ExperienceTypeId, Is.EqualTo(_EXPERIENCE_TYPE_ID));
+            Assert.That(unused[0].Points, Is.EqualTo(40));
+            Assert.That(accruals, Is.Empty, "The accrual table is empty between Turns.");
+            Assert.That(experience.Generated, Is.EqualTo(40));
+            Assert.That(experience.Lost, Is.EqualTo(40));
+        }
+    }
+
+    [Test, Description("A retried end of Turn distributes once. Without the guard the second pass would pour a freshly arrived accrual into the same buckets inside one Round.")]
+    public async Task ShouldDistributeOnceWhenTheEndOfTurnRunsTwiceInOneRoundAsync()
+    {
+        await AddProjectAsync(directedRequired: null, experienceRequired: 500);
+        await AddExperienceTypeAsync();
+        await LinkExperienceTypeAsync(_PROJECT_ID);
+        await AddAccrualAsync(40);
+        await AddResearchStateAsync(unspentDirectedPoints: 0, currentTechnologyId: null);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        await AddAccrualAsync(40);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        PlayerTechnology project = await ReloadProjectAsync();
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+        int historyCount = await context.ResearchHistories.CountAsync(row => row.Bucket == ResearchBucket.Experience);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(project.ExperiencePoints, Is.EqualTo(40), "The second run distributed nothing.");
+            Assert.That(historyCount, Is.EqualTo(1));
+        }
+    }
+
+    #endregion
+
+    #region Arrangement
 
     private static TurnPipelineContextData EndTurnContext() =>
         new(TurnPipelineType.EndCampaignTurn, _GAME_ID, _PLAYER_ID, _CURRENT_ROUND_NUMBER)
@@ -564,10 +794,154 @@ internal class ApplyResearchTests : InMemoryTestBase
         return await context.PlayerResearchStates.SingleAsync(row => row.PlayerId == _PLAYER_ID);
     }
 
-    private async Task<ResearchHistory> ReloadHistoryAsync()
+    /// <summary>
+    /// The Player's history row for one bucket, defaulting to Directed.
+    /// </summary>
+    /// <remarks>Filtered by bucket because the Turn now closes the experience books too, so a Player has more than one row per Round.</remarks>
+    private async Task<ResearchHistory> ReloadHistoryAsync(ResearchBucket bucket = ResearchBucket.Directed)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        return await context.ResearchHistories.SingleAsync(row => row.PlayerId == _PLAYER_ID);
+        return await context.ResearchHistories.SingleAsync(row => row.PlayerId == _PLAYER_ID && row.Bucket == bucket);
     }
+
+    #endregion
+
+    #region Experience arrangement
+
+    private async Task AddExperienceTypeAsync(string code = "Mining")
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.ExperienceTypes.Add(new ExperienceType
+        {
+            Id = _EXPERIENCE_TYPE_ID,
+            Code = code,
+            DisplayName = code,
+            IconPath = $"/experience/{code.ToLowerInvariant()}.png",
+            SortOrder = _EXPERIENCE_TYPE_ID
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    private async Task LinkExperienceTypeAsync(int technologyId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.TechnologyExperienceTypes.Add(new TechnologyExperienceType
+        {
+            TechnologyId = technologyId,
+            ExperienceTypeId = _EXPERIENCE_TYPE_ID
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    private async Task AddAccrualAsync(int points)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.PendingExperienceAccruals.Add(new PendingExperienceAccrual
+        {
+            GameId = _GAME_ID,
+            PlayerId = _PLAYER_ID,
+            ExperienceTypeId = _EXPERIENCE_TYPE_ID,
+            Points = points
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>Gives the dependent an experience bucket, so a test can show it is still passed over while Locked.</summary>
+    private async Task GiveDependentAnExperienceBucketAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        PlayerTechnology dependent = await context.PlayerTechnologies.SingleAsync(row => row.PlayerId == _PLAYER_ID && row.TechnologyId == _DEPENDENT_ID);
+        dependent.ExperienceRequired = 500;
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Makes the dependent Available with its experience bucket already full.
+    /// </summary>
+    /// <remarks>Available rather than Locked, so what excludes it from the split is the headroom test rather than the status test.</remarks>
+    private async Task MakeDependentASpentRecipientAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        PlayerTechnology dependent = await context.PlayerTechnologies.SingleAsync(row => row.PlayerId == _PLAYER_ID && row.TechnologyId == _DEPENDENT_ID);
+        dependent.Status = TechnologyStatus.Available;
+        dependent.ExperienceRequired = 50;
+        dependent.ExperiencePoints = 50;
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// One unimproved jungle tile that a Force of the Player's crossed this Turn, which the derived movement rule is worth a single point for.
+    /// </summary>
+    /// <remarks>No Biome or Geography row: the derivation projects <c>BiomeTypeId</c> and never materialises either navigation.</remarks>
+    private async Task AddJungleTileSteppedOnThisTurnAsync()
+    {
+        const int tileId = 7;
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.CampaignMaps.Add(new CampaignMap
+        {
+            CampaignMapId = tileId,
+            GameId = _GAME_ID,
+            XCoord = tileId,
+            YCoord = 0,
+            BiomeTypeId = BiomeType.Jungle,
+            CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat,
+            Biome = null!,
+            Geography = null!,
+            Game = null!,
+            FirstVisitor = null,
+            LastVisitor = null,
+            OwnedBy = null
+        });
+
+        context.MovementHistory.Add(new MovementHistory
+        {
+            Id = 1,
+            GameId = _GAME_ID,
+            UnitInstanceId = 1,
+            PlayerId = _PLAYER_ID,
+            UnitTemplateId = 1,
+            EventType = ForceHistoryEventType.Moved,
+            FromCampaignMapTileId = tileId - 1,
+            CampaignMapTileId = tileId,
+            PlayerTurnId = _PLAYER_TURN_ID,
+            TurnSequence = 1
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    private async Task<List<PlayerUnusedExperience>> ReloadUnusedAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        return await context.PlayerUnusedExperience
+            .AsNoTracking()
+            .Where(row => row.PlayerId == _PLAYER_ID)
+            .ToListAsync();
+    }
+
+    private async Task<List<PendingExperienceAccrual>> ReloadAccrualsAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        return await context.PendingExperienceAccruals
+            .AsNoTracking()
+            .Where(row => row.PlayerId == _PLAYER_ID)
+            .ToListAsync();
+    }
+
+    #endregion
 }

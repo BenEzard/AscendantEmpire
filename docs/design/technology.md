@@ -234,7 +234,7 @@ game delete can purge directly, and so "which other players in this game have X?
 | --- | --- |
 | `technology.PlayerTechnology` | One player's progress toward one technology: status, **their own** three requirement figures, the three point totals, the rounds the cost was paid and the technology discovered, and how and from whom it was discovered. |
 | `technology.PlayerResearchState` | One row per player: current and next research project, unspent directed and diffusion points, their `TechPointsPerPopulationSize`, and the rounds the start-of-turn generation and the end-of-turn spend last ran. |
-| `technology.PendingExperienceAccrual` | Experience earned during a turn, accumulated per type, awaiting distribution. Empty between turns. |
+| `technology.PendingExperienceAccrual` | Experience earned during a turn, accumulated per type, awaiting distribution. Emptied by every end of turn; a row outlives one only where a producer that runs outside a turn wrote it, such as a player reading their map while waiting. |
 | `technology.PlayerUnusedExperience` | Experience that had nowhere to go, per type. Never spent. |
 | `technology.PlayerResearchModifier` | Modifiers to how many points a player generates per turn, by bucket and granting source. Mirrors `PlayerSustenanceModifier`. |
 | `technology.ResearchHistory` | Per-round summary by bucket — generated, spent, overflowed, lost. Append-only. |

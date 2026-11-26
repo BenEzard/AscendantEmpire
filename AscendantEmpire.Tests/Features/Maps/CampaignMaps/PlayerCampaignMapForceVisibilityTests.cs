@@ -7,6 +7,7 @@ using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Players.Handlers;
+using AscendantEmpire.Application.Features.Technologies.Services;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
@@ -75,6 +76,8 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
             .AddScoped<IMovementDomainStrategy, BelowWaterMovementStrategy>()
             .AddScoped<IMovementDomainStrategy, AirMovementStrategy>()
             .AddScoped<IMovementDomainStrategy, NearEarthOrbitMovementStrategy>()
+            // The map read accrues Exploration experience for newly uncovered ground, so the handler cannot be constructed without the allocator.
+            .AddScoped<IExperienceAllocator, ExperienceAllocator>()
             .AddMediator(typeof(GetPlayersHandler).Assembly)
             .AddLogging()
             .BuildServiceProvider();

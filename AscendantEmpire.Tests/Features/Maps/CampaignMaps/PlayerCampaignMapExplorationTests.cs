@@ -7,10 +7,13 @@ using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Players.Handlers;
+using AscendantEmpire.Application.Features.Technologies.Classes;
+using AscendantEmpire.Application.Features.Technologies.Services;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
+using AscendantEmpire.Domain.Entities.Technologies;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -57,6 +60,15 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
     [SetUp]
     public void SetUpMediator()
     {
+        _mediator = BuildMediator(new ExperienceAllocator(NullLogger<ExperienceAllocator>.Instance));
+    }
+
+    /// <summary>
+    /// A mediator wired to the same handler chain the API uses, accruing experience through the allocator given.
+    /// </summary>
+    /// <remarks>The allocator is a parameter so one test can hand in a failing one and watch the sighting stamps go back with it.</remarks>
+    private IMediator BuildMediator(IExperienceAllocator experienceAllocator)
+    {
         // A real mediator, so the request goes through the same handler chain the API uses.
         // The campaign-map handlers take a context directly rather than a factory, hence both registrations.
         // GetGameContextHandler delegates its query to IGameContextService, which AddMediator does not register, so that goes in by hand.
@@ -79,11 +91,13 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
             .AddScoped<IMovementDomainStrategy, BelowWaterMovementStrategy>()
             .AddScoped<IMovementDomainStrategy, AirMovementStrategy>()
             .AddScoped<IMovementDomainStrategy, NearEarthOrbitMovementStrategy>()
+            // The real allocator, because what the read accrues for newly uncovered ground is one of the things these tests assert.
+            .AddScoped(_ => experienceAllocator)
             .AddMediator(typeof(GetPlayersHandler).Assembly)
             .AddLogging()
             .BuildServiceProvider();
 
-        _mediator = provider.GetRequiredService<IMediator>();
+        return provider.GetRequiredService<IMediator>();
     }
 
     /// <summary>Sets up a game on a map big enough that the starting Observers cannot possibly see all of it.</summary>
@@ -522,4 +536,237 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
             _ => throw new ArgumentOutOfRangeException(nameof(biomeType), biomeType, "This fixture only seeds the Biomes its own rules need.")
         };
     }
+
+    #region Exploration experience
+
+    [Test, Description("A Tile nobody has seen before is worth 3 Exploration points, which is what separates discovering ground from merely arriving on it.")]
+    public async Task ShouldAccrueThreePointsPerFirstSightingAsync()
+    {
+        await SeedExplorationExperienceTypeAsync();
+
+        int gameId = await SetupGameAsync();
+        Player player = await GetFirstPlayerAsync(gameId);
+
+        await ReadWholeMapAsync(gameId, player.Id);
+
+        int exploredTiles = await CountStampedTilesAsync(player.CampaignOffsetId);
+        int accruedPoints = await AccruedExplorationPointsAsync(player.Id);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(exploredTiles, Is.GreaterThan(0), "the starting Observers must reveal something, or this test proves nothing");
+            Assert.That(accruedPoints, Is.EqualTo(exploredTiles * 3));
+        });
+    }
+
+    [Test, Description("Ground somebody else found first is worth 1 point, because arriving where another empire has already been teaches less than discovery.")]
+    public async Task ShouldAccrueOnePointPerTileSomebodyElseSawFirstAsync()
+    {
+        await SeedExplorationExperienceTypeAsync();
+
+        int gameId = await SetupGameAsync();
+        Player player = await GetFirstPlayerAsync(gameId);
+
+        await ReadWholeMapAsync(gameId, player.Id);
+
+        int exploredTiles = await CountStampedTilesAsync(player.CampaignOffsetId);
+
+        // Forget what this Player saw while leaving the world's record of who saw it first intact, so the second read finds ground that is new to them and
+        // old to the world - the only state in which the one-point rule applies.
+        await ForgetPlayerSightingsAsync(player.CampaignOffsetId);
+        await ClearAccrualsAsync(player.Id);
+
+        await ReadWholeMapAsync(gameId, player.Id);
+
+        Assert.That(await AccruedExplorationPointsAsync(player.Id), Is.EqualTo(exploredTiles));
+    }
+
+    [Test, Description("A second read in the same Turn accrues nothing more, because the sighting stamp the first read wrote is what makes the grant idempotent.")]
+    public async Task ShouldAccrueNothingOnASecondReadWhenTheStampIsAlreadySetAsync()
+    {
+        await SeedExplorationExperienceTypeAsync();
+
+        int gameId = await SetupGameAsync();
+        Player player = await GetFirstPlayerAsync(gameId);
+
+        await ReadWholeMapAsync(gameId, player.Id);
+
+        int afterFirstRead = await AccruedExplorationPointsAsync(player.Id);
+
+        await ReadWholeMapAsync(gameId, player.Id);
+
+        Assert.That(await AccruedExplorationPointsAsync(player.Id), Is.EqualTo(afterFirstRead));
+    }
+
+    [Test, Description("Two reads that overlap pay for the ground once between them, because the grant counts the Tiles its own stamp changed rather than what it saw before stamping.")]
+    public async Task ShouldPayForNewGroundOnceWhenTwoReadsOverlapAsync()
+    {
+        await SeedExplorationExperienceTypeAsync();
+
+        int gameId = await SetupGameAsync();
+        Player player = await GetFirstPlayerAsync(gameId);
+
+        Task<IReadOnlyCollection<ObserverSight>> firstRead = ReadWholeMapAsync(gameId, player.Id);
+        Task<IReadOnlyCollection<ObserverSight>> secondRead = ReadWholeMapAsync(gameId, player.Id);
+
+        await Task.WhenAll(firstRead, secondRead);
+
+        int exploredTiles = await CountStampedTilesAsync(player.CampaignOffsetId);
+
+        Assert.That(
+            await AccruedExplorationPointsAsync(player.Id),
+            Is.EqualTo(exploredTiles * 3),
+            "Whichever read loses the race revealed nothing, so it must earn nothing.");
+    }
+
+    [Test, Description("A read that reveals nothing writes no accrual row at all, rather than a row of zero that would claim the Player learned something in a Turn they did not.")]
+    public async Task ShouldWriteNoAccrualRowWhenTheReadRevealsNothingNewAsync()
+    {
+        await SeedExplorationExperienceTypeAsync();
+
+        int gameId = await SetupGameAsync();
+        Player player = await GetFirstPlayerAsync(gameId);
+
+        await ReadWholeMapAsync(gameId, player.Id);
+        await ClearAccrualsAsync(player.Id);
+
+        await ReadWholeMapAsync(gameId, player.Id);
+
+        Assert.That(await AccrualRowCountAsync(player.Id), Is.Zero);
+    }
+
+    [Test, Description("An accrual that throws takes the sighting stamps with it. The stamp is the only record that ground was ever new, so one that committed without its points would lose them for good.")]
+    public async Task ShouldRollTheSightingStampsBackWhenTheAccrualThrowsAsync()
+    {
+        await SeedExplorationExperienceTypeAsync();
+
+        int gameId = await SetupGameAsync();
+        Player player = await GetFirstPlayerAsync(gameId);
+
+        _mediator = BuildMediator(new ThrowingExperienceAllocator());
+
+        try
+        {
+            await _mediator.Send(new GetPlayerCampaignMapRequest(gameId, player.Id, LoadWholeMap: true));
+        }
+        catch (InvalidOperationException)
+        {
+            // The refusal itself is not what is under test - what the database looks like afterwards is.
+        }
+
+        Assert.That(
+            await CountStampedTilesAsync(player.CampaignOffsetId),
+            Is.Zero,
+            "No ground may be marked explored by a read that could not pay for exploring it.");
+    }
+
+    [Test, Description("A database whose experience catalogue was never seeded still serves the map, because refusing the read would cost the Player far more than the points.")]
+    public async Task ShouldStillServeTheMapWhenTheExperienceCatalogueIsEmptyAsync()
+    {
+        int gameId = await SetupGameAsync();
+        Player player = await GetFirstPlayerAsync(gameId);
+
+        IReadOnlyCollection<ObserverSight> observers = await ReadWholeMapAsync(gameId, player.Id);
+
+        int stampedTiles = await CountStampedTilesAsync(player.CampaignOffsetId);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(observers, Is.Not.Empty);
+            Assert.That(stampedTiles, Is.GreaterThan(0), "the stamp must still land even though nothing could be accrued");
+        });
+    }
+
+    #endregion
+
+    #region Exploration experience helpers
+
+    /// <summary>
+    /// Adds the one <c>ExperienceType</c> row the exploration rules resolve against.
+    /// </summary>
+    /// <remarks>
+    /// The migration seeds no experience types - they come from the database seed tool - so the restored template has none, and a test that wants the accrual
+    /// to happen has to provide the row itself.
+    /// </remarks>
+    private async Task SeedExplorationExperienceTypeAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        if (await context.ExperienceTypes.AnyAsync(type => type.Code == ExperienceTypeCodes.EXPLORATION))
+        {
+            return;
+        }
+
+        context.ExperienceTypes.Add(new ExperienceType
+        {
+            Code = ExperienceTypeCodes.EXPLORATION,
+            DisplayName = "Exploration",
+            IconPath = string.Empty,
+            SortOrder = 10
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    private async Task<int> AccruedExplorationPointsAsync(int playerId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        return await context.PendingExperienceAccruals
+            .Where(accrual => accrual.PlayerId == playerId && accrual.ExperienceType.Code == ExperienceTypeCodes.EXPLORATION)
+            .Select(accrual => accrual.Points)
+            .FirstOrDefaultAsync();
+    }
+
+    /// <summary>How many of this Player's own map Tiles carry a first-seen stamp, which is the count the grant is worked out from.</summary>
+    private async Task<int> CountStampedTilesAsync(int playerMapOffsetId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        return await context.PlayerCampaignMaps
+            .CountAsync(tile => tile.PlayerCampaignMapId >= playerMapOffsetId
+                             && tile.PlayerCampaignMapId < playerMapOffsetId + (_MAP_WIDTH * _MAP_HEIGHT)
+                             && tile.FirstSeenOnTurnId != null);
+    }
+
+    private async Task ForgetPlayerSightingsAsync(int playerMapOffsetId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        await context.PlayerCampaignMaps
+            .Where(tile => tile.PlayerCampaignMapId >= playerMapOffsetId
+                        && tile.PlayerCampaignMapId < playerMapOffsetId + (_MAP_WIDTH * _MAP_HEIGHT))
+            .ExecuteUpdateAsync(setters => setters.SetProperty(tile => tile.FirstSeenOnTurnId, (int?)null));
+    }
+
+    private async Task ClearAccrualsAsync(int playerId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        await context.PendingExperienceAccruals.Where(accrual => accrual.PlayerId == playerId).ExecuteDeleteAsync();
+    }
+
+    /// <summary>How many accrual rows the Player holds, which tells a row of zero apart from no row at all.</summary>
+    private async Task<int> AccrualRowCountAsync(int playerId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        return await context.PendingExperienceAccruals.CountAsync(accrual => accrual.PlayerId == playerId);
+    }
+
+    /// <summary>An allocator that refuses by throwing, standing in for a write the database rejects.</summary>
+    private sealed class ThrowingExperienceAllocator : IExperienceAllocator
+    {
+        public Task<ServiceResultBase> AccrueAsync(
+            AscendantEmpireContext context,
+            int gameId,
+            int playerId,
+            IReadOnlyDictionary<string, int> pointsByCode,
+            CancellationToken cancelToken)
+        {
+            throw new InvalidOperationException("The accrual could not be written.");
+        }
+    }
+
+    #endregion
 }

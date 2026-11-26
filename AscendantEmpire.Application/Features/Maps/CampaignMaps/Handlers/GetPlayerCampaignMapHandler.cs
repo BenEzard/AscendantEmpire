@@ -1,10 +1,13 @@
-﻿using AscendantEmpire.Application.Common.Messaging;
+﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Structures.Handlers;
+using AscendantEmpire.Application.Features.Technologies.Classes;
+using AscendantEmpire.Application.Features.Technologies.Services;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Handlers;
 using AscendantEmpire.BackendContracts.CampaignMaps;
@@ -16,6 +19,7 @@ using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -58,9 +62,16 @@ internal class GetPlayerCampaignMapHandler(
     ICampaignTurnService campaignTurnService,
     IFieldOfViewService fieldOfViewService,
     ICampaignRiverReader campaignRiverReader,
-    ICampaignOwnershipReader campaignOwnershipReader
+    ICampaignOwnershipReader campaignOwnershipReader,
+    IExperienceAllocator experienceAllocator
     ) : IRequestHandler<GetPlayerCampaignMapRequest, ServiceResult<IReadOnlyCollection<ObserverSight>>>
 {
+    /// <summary>What uncovering ground nobody in the Game had seen is worth.</summary>
+    private const int _FIRST_SIGHTING_EXPERIENCE = 3;
+
+    /// <summary>What seeing ground another Player found first is worth. Arriving somewhere teaches less than discovering it.</summary>
+    private const int _LATER_SIGHTING_EXPERIENCE = 1;
+
     public async Task<ServiceResult<IReadOnlyCollection<ObserverSight>>> Handle(GetPlayerCampaignMapRequest request, CancellationToken cancelToken)
     {
         List<ObserverSight> observers = [];
@@ -168,13 +179,9 @@ internal class GetPlayerCampaignMapHandler(
             // Note that these operations must occur in SEQUENCE.
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            // Get a summary of the number of Tiles which are newly discovered *FOR THE PLAYER* by Biome
-            // TODO: Use this data to add Biome expertise points to the Player's Faction
-            IReadOnlyCollection<PlayerDiscoveredTileSummary> newlyDiscoveredTilesForPlayer = await CountNewlyDiscoveredTilesByBiomeAsync(context, playerCampaignMapTileIds, cancelToken);
-
             // The Turn to stamp on what this Player just saw.
             //
-            // Resolved once, and handed to both updates below - they run on separate contexts and must agree about which Turn this read was.
+            // Resolved once, and handed to both updates below, which must agree about which Turn this read was.
             //
             // TODO: Note this is still a side effect of the *read* rather than of movement. The sight rules no longer live here, but the stamp does, and
             // relocating it onto the movement path is its own piece of work - it changes when ground becomes explored.
@@ -191,16 +198,28 @@ internal class GetPlayerCampaignMapHandler(
 
             int turnId = observationTurnResult.SuccessValue;
 
+            // The stamp and the experience it earns go in together. The stamp is the only record that a Tile was ever new, so a stamp that committed while
+            // the accrual failed to write would lose those points for good - there would be nothing left to tell the next read that the ground was new.
+            //
+            // Sequential on one context rather than parallel on two, which is what a shared transaction costs and buys.
+            await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancelToken);
+
             // Update the PlayerCampaignMap with Biome/Geography info, and FirstSeen/LastSeen turn info
-            Task updatePlayerMapTask = UpdatePlayerCampaignMapFromCampaignMapAsync(playerCampaignMapTileIds, turnId, cancelToken);
+            int newlyDiscoveredForPlayer = await UpdatePlayerCampaignMapFromCampaignMapAsync(context, playerCampaignMapTileIds, turnId, cancelToken);
 
             // Update the CampaignMap with FirstSeenByPlayer/FirstSeenOnTurn info
-            // TODO: Use this data to add to Exploration achievements for the Player
-            Task<int> updateCampaignMap = UpdateCampaignMapFirstSeenAsync(playerCampaignMapTileIds, thisPlayer.PlayerId, turnId, cancelToken);
+            int firstDiscoveredByPlayer = await UpdateCampaignMapFirstSeenAsync(context, playerCampaignMapTileIds, thisPlayer.PlayerId, turnId, cancelToken);
 
-            await Task.WhenAll(updatePlayerMapTask, updateCampaignMap);
+            await AccrueExplorationExperienceAsync(
+                context,
+                request.GameId,
+                thisPlayer.PlayerId,
+                firstDiscoveredByPlayer,
+                newlyDiscoveredForPlayer,
+                cancelToken);
 
-            int firstDiscoveredByPlayer = updateCampaignMap.Result;
+            await context.SaveChangesAsync(cancelToken);
+            await transaction.CommitAsync(cancelToken);
         }
 
         observers.AddRange([.. fieldsOfView.Select(view => new ObserverSight
@@ -372,44 +391,25 @@ internal class GetPlayerCampaignMapHandler(
     }
 
     /// <summary>
-    /// Count the number of Tiles which haven't been seen yet by the Player, by the actual CampaignMap Biome.
-    /// </summary>
-    private static async Task<IReadOnlyCollection<PlayerDiscoveredTileSummary>> CountNewlyDiscoveredTilesByBiomeAsync(
-        AscendantEmpireContext context,
-        IEnumerable<int> playerCampaignMapIds,
-        CancellationToken cancelToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(playerCampaignMapIds);
-
-        if (playerCampaignMapIds.Any() == false)
-        {
-            return [];
-        }
-
-        return await (from pm in context.PlayerCampaignMaps.AsNoTracking()
-                      join cm in context.CampaignMaps.AsNoTracking()
-                          on pm.CampaignMapId equals cm.CampaignMapId
-                      where playerCampaignMapIds.Contains(pm.PlayerCampaignMapId)
-                         && pm.FirstSeenOnTurnId == null
-                      group pm by cm.BiomeTypeId into g
-                      select new PlayerDiscoveredTileSummary
-                      {
-                          BiomeType = g.Key,
-                          Count = g.Count()
-                      }).ToListAsync(cancelToken);
-    }
-
-    /// <summary>
     /// Update the PlayerCampaignMap entries to reflect the current state of the CampaignMap entries.
     /// </summary>
+    /// <returns>How many Tiles this read revealed to the Player, which is what the exploration grant is paid on.</returns>
     /// <remarks>
+    /// <para>
     /// <list type="bullet">
     /// <item>Copy BiomeTypeId + CampaignMapGeographyTypeId from CampaignMap</item>
     /// <item>Set FirstSeenOnTurnId if null</item>
     /// <item>Set LastSeenOnTurnId always</item>
     /// </list>
+    /// </para>
+    /// <para>
+    /// <b>The first-seen stamp is a predicated update of its own</b>, and the rows it changes are the count. Counting beforehand and stamping afterwards
+    /// would pay twice for one piece of ground whenever two reads for the same Player overlapped: both would count the Tiles as new, the loser's stamp would
+    /// change nothing, and it would still be paid.
+    /// </para>
     /// </remarks>
-    private async Task UpdatePlayerCampaignMapFromCampaignMapAsync(
+    private static async Task<int> UpdatePlayerCampaignMapFromCampaignMapAsync(
+        AscendantEmpireContext context,
         IEnumerable<int> playerCampaignMapIds,
         int turnId,
         CancellationToken cancelToken = default)
@@ -418,10 +418,12 @@ internal class GetPlayerCampaignMapHandler(
 
         if (playerCampaignMapIds.Any() == false)
         {
-            return;
+            return 0;
         }
 
-        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+        int newlyDiscoveredForPlayer = await context.PlayerCampaignMaps
+            .Where(pm => playerCampaignMapIds.Contains(pm.PlayerCampaignMapId) && pm.FirstSeenOnTurnId == null)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(pm => pm.FirstSeenOnTurnId, turnId), cancelToken);
 
         // Correlated subqueries for copying values from CampaignMap.
         // This translates to SQL with scalar subqueries and works well for set-based updates.
@@ -441,18 +443,63 @@ internal class GetPlayerCampaignMapHandler(
                              .Select(cm => cm.CampaignMapGeographyTypeId)
                              .First())
                 .SetProperty(
-                    pm => pm.FirstSeenOnTurnId,
-                    pm => pm.FirstSeenOnTurnId ?? turnId)
-                .SetProperty(
                     pm => pm.LastSeenOnTurnId,
                     pm => turnId),
                 cancelToken);
+
+        return newlyDiscoveredForPlayer;
     }
 
-    private record class PlayerDiscoveredTileSummary
+    /// <summary>
+    /// Accrues the Exploration experience the Tiles this read just revealed are worth.
+    /// </summary>
+    /// <param name="firstDiscoveredByPlayer">Tiles nobody in the Game had seen, each worth <see cref="_FIRST_SIGHTING_EXPERIENCE"/>.</param>
+    /// <param name="newlyDiscoveredForPlayer">Tiles new to this Player; the ones another Player found first are worth <see cref="_LATER_SIGHTING_EXPERIENCE"/>.</param>
+    /// <remarks>
+    /// <para>
+    /// The stamp written by the caller is what makes this idempotent: a second read in the same Turn finds nothing newly discovered, so there is nothing left
+    /// to accrue. No Round guard is needed or wanted.
+    /// </para>
+    /// <para>
+    /// <b>A refused accrual does not fail the read.</b> The experience catalogue comes from the database seed tool rather than from a migration, so a database
+    /// it has never run against has no <c>ExperienceType</c> rows at all - and refusing the map read there would cost the Player their whole map to protect
+    /// points that cannot exist. A write that fails instead throws, and the caller's transaction takes the stamp down with it, which is the case where points
+    /// really would be lost.
+    /// </para>
+    /// </remarks>
+    private async Task AccrueExplorationExperienceAsync(
+        AscendantEmpireContext context,
+        int gameId,
+        int playerId,
+        int firstDiscoveredByPlayer,
+        int newlyDiscoveredForPlayer,
+        CancellationToken cancelToken)
     {
-        public BiomeType BiomeType { get; init; }
-        public int Count { get; init; }
+        int laterSightings = Math.Max(0, newlyDiscoveredForPlayer - firstDiscoveredByPlayer);
+
+        int points = (firstDiscoveredByPlayer * _FIRST_SIGHTING_EXPERIENCE) + (laterSightings * _LATER_SIGHTING_EXPERIENCE);
+
+        if (points == 0)
+        {
+            return;
+        }
+
+        ServiceResultBase accrual = await experienceAllocator.AccrueAsync(
+            context,
+            gameId,
+            playerId,
+            new Dictionary<string, int> { [ExperienceTypeCodes.EXPLORATION] = points },
+            cancelToken);
+
+        if (accrual.HasSucceeded == false)
+        {
+            logger.LogWarning(
+                "Could not accrue {Points} Exploration experience point(s) for Player Id {PlayerId} in Game Id {GameId}: {Errors}",
+                points,
+                playerId,
+                gameId,
+                string.Join("; ", accrual.Errors));
+        }
     }
 
     /// <summary>
@@ -465,7 +512,8 @@ internal class GetPlayerCampaignMapHandler(
     /// </list>
     /// </remarks>
     /// <returns>Number of Tiles updated.</returns>
-    public async Task<int> UpdateCampaignMapFirstSeenAsync(
+    public static async Task<int> UpdateCampaignMapFirstSeenAsync(
+        AscendantEmpireContext context,
         IEnumerable<int> playerCampaignMapIds,
         int playerId,
         int turnId,
@@ -477,8 +525,6 @@ internal class GetPlayerCampaignMapHandler(
         {
             return 0;
         }
-
-        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
         var cmIdsQuery =
             context.PlayerCampaignMaps
