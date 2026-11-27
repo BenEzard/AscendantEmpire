@@ -26,11 +26,11 @@ export default defineConfig({
     force: true,
   },
 
-  // Multi-page app: each feature has its own HTML entry so a browser tab only
-  // ever loads/mounts one feature. The root index.html is a tiny landing page.
+  // Multi-page app: each feature has its own HTML entry so a browser tab only ever loads/mounts one feature. The root index.html is a tiny landing page.
   build: {
     rollupOptions: {
       input: {
+        authredirect: path.resolve(__dirname, "auth-redirect/index.html"),
         landing: path.resolve(__dirname, "index.html"),
         game: path.resolve(__dirname, "game/index.html"),
         mapeditor: path.resolve(__dirname, "mapeditor/index.html"),
